@@ -263,7 +263,7 @@ function openSheet(s) {
   const approx = (s.geo && s.geo !== 'full' && s.geo !== 'number')
     ? `<div class="approx-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>地図上の位置はおおよそ（丁目の中心）です</div>` : '';
 
-  const mapsHref = mapsUrl(s.lat, s.lng, s.store_name);
+  const mapsHref = mapsUrl(s.lat, s.lng);
   const actions = `<div class="actions">
     ${s.lat != null ? `<a class="act-btn" href="${mapsHref}" target="_blank" rel="noopener">${ICON.route}ルート案内</a>` : ''}
     ${tel ? `<a class="act-btn sec" href="tel:${tel}">${ICON.phone2}電話する</a>` : ''}
@@ -311,11 +311,9 @@ function openAbout() {
   track('about_open');
 }
 
-function mapsUrl(lat, lng, name) {
-  const apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
-  return apple
-    ? `https://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(name)}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+// Google マップの経路案内（現在地 → 店舗の座標）。スマホではGoogle Mapsアプリが開く。
+function mapsUrl(lat, lng) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 }
 
 function focusStore(s) {
