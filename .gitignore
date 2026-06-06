@@ -1,0 +1,7 @@
+# 再生成可能（geocode.py の入出力。配信不要）
+data/store_list.raw.json
+scripts/geocode_cache.json
+.DS_Store
+
+# 社内用・非公開（公開リポジトリに含めない）
+運用メモ.md
