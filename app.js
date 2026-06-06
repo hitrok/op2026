@@ -178,14 +178,17 @@ function matchStore(s) {
   return true;
 }
 
+// リストの距離は「地図の中心」基準（いま見ている場所から近い順）
+function rankByCenter() {
+  const c = map.getCenter();
+  const ref = { lat: c.lat, lng: c.lng };
+  for (const s of filtered) s._d = (s.lat != null) ? distM(ref, s) : Infinity;
+  filtered.sort((a, b) => a._d - b._d);
+}
+
 function applyFilters() {
   filtered = stores.filter(matchStore);
-  if (userPos) {
-    for (const s of filtered) s._d = (s.lat != null) ? distM(userPos, s) : Infinity;
-    filtered.sort((a, b) => a._d - b._d);
-  } else {
-    filtered.sort((a, b) => (a.store_name_kana || '').localeCompare(b.store_name_kana || '', 'ja'));
-  }
+  rankByCenter();
   // 地図のマーカー更新
   const layers = [];
   for (const s of filtered) { const m = markersById.get(s.store_id); if (m) layers.push(m); }
@@ -212,11 +215,11 @@ function renderList() {
       <p>該当するお店がありません</p></div>`;
     return;
   }
-  const hint = userPos ? '現在地から近い順' : 'あいうえお順（現在地ボタンで距離順に）';
+  const hint = '地図の中心から近い順';
   const slice = filtered.slice(0, listLimit);
   const rows = slice.map((s) => {
     const { color, emoji } = catOf(s.store_category_major_name);
-    const dist = (userPos && s._d != null && s._d !== Infinity) ? `<div class="dist">${fmtDist(s._d)}${CHEV}</div>` : `<div class="dist">${CHEV}</div>`;
+    const dist = (s._d != null && s._d !== Infinity) ? `<div class="dist">${fmtDist(s._d)}${CHEV}</div>` : `<div class="dist">${CHEV}</div>`;
     return `<div class="row" data-id="${s.store_id}">
       <div class="pin" style="background:${color}">${emoji}</div>
       <div class="info">
@@ -434,7 +437,15 @@ function setView(v) {
   $('#listView').classList.toggle('show', v === 'list');
   $('#locFab').style.display = v === 'map' ? 'grid' : 'none';
   $('#seg').querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
-  if (v === 'map') setTimeout(() => map.invalidateSize(), 60);
+  if (v === 'map') {
+    setTimeout(() => map.invalidateSize(), 60);
+  } else {
+    // リストを開くたびに、その時点の地図中心から並べ直す
+    listLimit = 80;
+    rankByCenter();
+    renderList();
+    $('#listView').scrollTop = 0;
+  }
 }
 
 // ===== カテゴリチップ / 業種セレクト =====
