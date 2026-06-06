@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1200px; height:630px; }
+  body {
+    font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    width:1200px; height:630px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(900px 600px at 88% -10%, rgba(0,122,255,.16), transparent 60%),
+      radial-gradient(700px 500px at -5% 110%, rgba(52,199,89,.13), transparent 60%),
+      #f4f5f7;
+    color:#1c1c1e;
+  }
+  /* faint map grid */
+  .grid { position:absolute; inset:0; opacity:.5;
+    background-image:
+      linear-gradient(rgba(0,0,0,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,.035) 1px, transparent 1px);
+    background-size:54px 54px; }
+  .wrap { position:relative; padding:64px 70px; height:100%; display:flex; flex-direction:column; }
+
+  .top { display:flex; align-items:center; gap:18px; }
+  .ic { width:84px; height:84px; border-radius:21px; background:#007aff;
+    display:grid; place-items:center; box-shadow:0 10px 26px rgba(0,122,255,.35); }
+  .ic svg { width:50px; height:50px; }
+  .eyebrow { font-size:25px; font-weight:700; color:#007aff; letter-spacing:.04em; }
+  .url { font-size:21px; color:#8a8a8e; font-weight:600; margin-top:2px; }
+
+  h1 { margin-top:40px; font-size:74px; font-weight:800; letter-spacing:-.03em; line-height:1.12; }
+  h1 .yr { color:#007aff; }
+  .sub { margin-top:14px; font-size:38px; font-weight:700; color:#3a3a3c; letter-spacing:-.01em; }
+
+  .pins { margin-top:auto; display:flex; gap:14px; flex-wrap:wrap; }
+  .pin { display:inline-flex; align-items:center; gap:9px; font-size:25px; font-weight:700;
+    padding:12px 22px; border-radius:100px; background:#fff; color:#1c1c1e;
+    box-shadow:0 4px 14px rgba(0,0,0,.07); }
+  .dot { width:15px; height:15px; border-radius:50%; }
+
+  .foot { margin-top:34px; display:flex; align-items:center; justify-content:space-between; }
+  .feat { font-size:26px; color:#636366; font-weight:600; }
+  .by { font-size:27px; color:#1c1c1e; font-weight:600; }
+  .by b { font-weight:800; }
+  .badge { font-size:22px; font-weight:800; color:#fff; background:#ff3b30; padding:6px 16px; border-radius:100px; }
+</style></head>
+<body>
+  <div class="grid"></div>
+  <div class="wrap">
+    <div class="top">
+      <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 6 8 12 8 12s8-6 8-12a8 8 0 0 0-8-8z" fill="#fff"/><circle cx="12" cy="10" r="3.2" fill="#007aff"/></svg></div>
+      <div>
+        <div class="eyebrow">加盟店マップ <span style="color:#c7c7cc">|</span> <span class="badge" style="font-size:18px;vertical-align:middle">非公式</span></div>
+        <div class="url">op2026.plan8.jp</div>
+      </div>
+    </div>
+
+    <h1>大分市プレミアム付き商品券<span class="yr">2026</span></h1>
+    <div class="sub">加盟店を、地図でサッと探せる。</div>
+
+    <div class="pins">
+      <span class="pin"><span class="dot" style="background:#ff9500"></span>🍴 食べる</span>
+      <span class="pin"><span class="dot" style="background:#007aff"></span>🛍️ 買う</span>
+      <span class="pin"><span class="dot" style="background:#34c759"></span>🏠 暮らす</span>
+      <span class="pin"><span class="dot" style="background:#af52de"></span>🎡 遊ぶ</span>
+      <span class="pin"><span class="dot" style="background:#ff2d55"></span>🛏️ 泊まる</span>
+    </div>
+
+    <div class="foot">
+      <div class="feat">現在地から近い順 ・ カテゴリ/名前で検索 ・ 2,430店</div>
+      <div class="by">制作 <b>plan8</b></div>
+    </div>
+  </div>
+</body></html>
