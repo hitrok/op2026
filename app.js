@@ -8,6 +8,7 @@
 const SRC = 'https://2026.oita-pay.jp/docs/store_list/store_list.json'; // 最新加盟店データ
 const GSI = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q='; // ジオコーダ
 const BASELINE = 'data/stores.geo.json'; // 同梱の初期データ
+const DATA_VERSION = 2;  // 座標の補正版。上げると保存済みデータの座標をbaselineで再シードする
 const OITA_CENTER = [33.2335, 131.6075];
 
 const CATS = {
@@ -398,7 +399,7 @@ async function update() {
     }
 
     stores = merged;
-    dataMeta = { updatedAt: Date.now(), count: stores.length };
+    dataMeta = { updatedAt: Date.now(), count: stores.length, baseVersion: DATA_VERSION };
     await idbSet('dataset', stores);
     await idbSet('meta', dataMeta);
     track('update_data', { added, changed, removed });
@@ -568,8 +569,23 @@ async function boot() {
   wire();
   try {
     const saved = await idbGet('dataset');
-    if (saved && saved.length) { stores = saved; dataMeta = await idbGet('meta'); }
-    else stores = await fetch(BASELINE).then((r) => r.json());
+    if (saved && saved.length) {
+      dataMeta = await idbGet('meta');
+      // 座標補正版が上がっていたら、保存済みデータの座標をbaselineで再シード（新規店は維持）
+      if (!dataMeta || (dataMeta.baseVersion || 0) < DATA_VERSION) {
+        try {
+          const base = await fetch(BASELINE).then((r) => r.json());
+          const bc = new Map(base.map((b) => [b.store_id, b]));
+          for (const s of saved) { const b = bc.get(s.store_id); if (b) { s.lat = b.lat; s.lng = b.lng; s.geo = b.geo; } }
+          dataMeta = Object.assign({}, dataMeta, { baseVersion: DATA_VERSION });
+          await idbSet('dataset', saved);
+          await idbSet('meta', dataMeta);
+        } catch (e) { /* オフライン時はスキップ */ }
+      }
+      stores = saved;
+    } else {
+      stores = await fetch(BASELINE).then((r) => r.json());
+    }
   } catch (e) {
     try { stores = await fetch(BASELINE).then((r) => r.json()); }
     catch { toast('データの読み込みに失敗しました'); stores = []; }

@@ -5,3 +5,10 @@ scripts/geocode_cache.json
 
 # 社内用・非公開（公開リポジトリに含めない）
 運用メモ.md
+
+# ジオコーディングQA/補正の中間ファイル（再生成可能）
+scripts/title_cache.json
+scripts/qa_suspects.json
+scripts/fix_gsi_cache.json
+scripts/fix_nomi_cache.json
+data/stores.geo.fixed.json
