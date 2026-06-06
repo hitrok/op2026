@@ -69,6 +69,11 @@
       </button>
     </div>
 
+    <div class="notice" id="notice">
+      <span><b>非公式</b>マップです。利用できる券種・店舗区分（大規模／中小・小規模店舗）は <a href="https://2026.oita-pay.jp/" target="_blank" rel="noopener">公式サイト</a> で必ずご確認ください。</span>
+      <button class="notice-x" id="noticeClose" aria-label="この注意書きを閉じる">×</button>
+    </div>
+
     <div class="controls-row">
       <div class="segmented" id="seg" role="tablist">
         <button data-view="map" class="active" role="tab">地図</button>
@@ -94,6 +99,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
     </button>
     <div class="adv-panel" id="advPanel">
+      <select id="sizeSelect" aria-label="店舗区分で絞り込み">
+        <option value="">店舗区分：すべて</option>
+        <option value="large">大規模店舗</option>
+        <option value="small">中小・小規模店舗</option>
+      </select>
       <select id="minorSelect" aria-label="業種で絞り込み"><option value="">すべての業種</option></select>
       <label class="toggle-row">デジタル対応のみ
         <span class="switch"><input type="checkbox" id="digitalOnly"><span class="track"><span class="thumb"></span></span></span>

@@ -29,7 +29,12 @@ const markersById = new Map();
 let userPos = null;              // {lat,lng}
 let dataMeta = null;             // {updatedAt,count}（更新後のみ）
 let view = 'map';
-const filters = { majors: new Set(), minor: '', q: '', digital: false };
+const filters = { majors: new Set(), minor: '', q: '', digital: false, size: '' };
+
+// 店舗区分（公式表記：大規模店舗 / 中小・小規模店舗）— 商品券の券種に関わる重要な区別
+function sizeInfo(s) {
+  return s.is_small_store ? { label: '中小・小規模店舗', cls: 'small' } : { label: '大規模店舗', cls: 'large' };
+}
 let listLimit = 80;
 
 const $ = (s) => document.querySelector(s);
@@ -171,6 +176,8 @@ function matchStore(s) {
   if (filters.majors.size && !filters.majors.has(s.store_category_major_name)) return false;
   if (filters.minor && s.store_category_minor_name !== filters.minor) return false;
   if (filters.digital && !s.digital_coupon) return false;
+  if (filters.size === 'small' && !s.is_small_store) return false;
+  if (filters.size === 'large' && s.is_small_store) return false;
   if (filters.q) {
     const hay = norm(`${s.store_name} ${s.store_name_kana} ${s.address_1} ${s.address_2} ${s.store_category_minor_name} ${s.store_category_major_name}`);
     for (const term of filters.q.split(/\s+/)) if (term && !hay.includes(term)) return false;
@@ -220,11 +227,12 @@ function renderList() {
   const rows = slice.map((s) => {
     const { color, emoji } = catOf(s.store_category_major_name);
     const dist = (s._d != null && s._d !== Infinity) ? `<div class="dist">${fmtDist(s._d)}${CHEV}</div>` : `<div class="dist">${CHEV}</div>`;
+    const sz = sizeInfo(s);
     return `<div class="row" data-id="${s.store_id}">
       <div class="pin" style="background:${color}">${emoji}</div>
       <div class="info">
         <div class="name">${esc(s.store_name)}</div>
-        <div class="meta"><span class="cat">${esc(s.store_category_minor_name || s.store_category_major_name)}</span>${s.business_hours ? `<span>${esc(s.business_hours)}</span>` : ''}</div>
+        <div class="meta"><span class="tag ${sz.cls}">${sz.label}</span><span class="cat">${esc(s.store_category_minor_name || s.store_category_major_name)}</span>${s.business_hours ? `<span>${esc(s.business_hours)}</span>` : ''}</div>
         <div class="addr">${esc(s.address_1 + s.address_2)}</div>
       </div>${dist}</div>`;
   }).join('');
@@ -259,9 +267,12 @@ function openSheet(s) {
   const url = safeUrl(s.store_url);
   if (url) rows.push(detailRow(ICON.web, 'サイト', `<a class="dl-v" href="${esc(url)}" target="_blank" rel="noopener">公式サイトを開く</a>`));
 
+  const sz = sizeInfo(s);
   const cats = `<span class="s-cat" style="background:${color}">${esc(s.store_category_major_name)}</span>` +
+    `<span class="s-cat" style="background:${sz.cls === 'small' ? '#1494ad' : '#8e8e93'}">${sz.label}</span>` +
     (s.store_category_minor_name ? `<span class="s-cat minor">${esc(s.store_category_minor_name)}</span>` : '') +
     (s.digital_coupon ? `<span class="s-cat" style="background:#5856d6">デジタル対応</span>` : '');
+  const sizeNote = `<div class="size-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg><span>この店舗は<b>${sz.label}</b>です。利用できる券種は <a href="https://2026.oita-pay.jp/" target="_blank" rel="noopener">公式サイト</a>でご確認ください。</span></div>`;
 
   const approx = (s.geo && s.geo !== 'full' && s.geo !== 'number')
     ? `<div class="approx-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>地図上の位置はおおよそ（丁目の中心）です</div>` : '';
@@ -278,6 +289,7 @@ function openSheet(s) {
     <h2>${esc(s.store_name)}</h2>
     ${s.store_name_kana ? `<div class="kana">${esc(s.store_name_kana)}</div>` : ''}
     ${approx}
+    ${sizeNote}
     <div class="detail-list">${rows.join('')}</div>
     ${actions}`;
   $('#showOnMap') && $('#showOnMap').addEventListener('click', () => { closeSheet(); focusStore(s); });
@@ -528,7 +540,15 @@ function wire() {
     $('#advToggle').classList.toggle('open'); $('#advPanel').classList.toggle('open');
   });
   $('#minorSelect').addEventListener('change', (e) => { filters.minor = e.target.value; applyFilters(); });
+  $('#sizeSelect').addEventListener('change', (e) => { filters.size = e.target.value; track('filter_size', { size: e.target.value }); applyFilters(); });
   $('#digitalOnly').addEventListener('change', (e) => { filters.digital = e.target.checked; applyFilters(); });
+
+  // 非公式の注意書き（×で閉じたら記憶）
+  try { if (localStorage.getItem('op26_notice_hidden')) $('#notice').style.display = 'none'; } catch (e) { }
+  $('#noticeClose').addEventListener('click', () => {
+    $('#notice').style.display = 'none';
+    try { localStorage.setItem('op26_notice_hidden', '1'); } catch (e) { }
+  });
 
   $('#listView').addEventListener('click', (e) => {
     const row = e.target.closest('.row'); if (!row) return;

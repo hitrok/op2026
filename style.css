@@ -78,6 +78,28 @@ input, select { font-family: inherit; font-size: 17px; }
 }
 .brand .count { font-size: 12.5px; color: var(--text-3); font-weight: 500; margin-top: 3px; }
 
+/* 非公式の注意書き */
+.notice {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  font-size: 12.5px; line-height: 1.45; color: var(--text-2);
+  background: rgba(255, 149, 0, 0.13); border: 1px solid rgba(255, 149, 0, 0.28);
+  padding: 8px 8px 8px 11px; border-radius: 11px;
+}
+.notice span { flex: 1; }
+.notice b { color: var(--cat-eat); font-weight: 800; }
+.notice a { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.notice-x {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--text-3); font-size: 18px; line-height: 1; background: transparent;
+}
+.notice-x:active { background: var(--sep-strong); }
+
+/* 店舗規模タグ（大型店/中小店） */
+.tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 6px; line-height: 1.5; }
+.tag.small { background: rgba(48, 176, 199, 0.18); color: #1494ad; }
+.tag.large { background: rgba(142, 142, 147, 0.22); color: var(--text-2); }
+@media (prefers-color-scheme: dark) { .tag.small { color: #5ad0e6; } }
+
 .controls-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; }
 .credit {
   display: inline-flex; align-items: center; gap: 4px; flex: none;
@@ -271,6 +293,12 @@ input, select { font-family: inherit; font-size: 17px; }
 .act-btn.sec { background: var(--field); color: var(--accent); }
 .act-btn:active { transform: scale(0.97); }
 .act-btn svg { width: 19px; height: 19px; }
+.size-note {
+  display: flex; gap: 7px; align-items: flex-start; font-size: 12.5px; line-height: 1.5;
+  color: var(--text-2); background: var(--field); padding: 10px 12px; border-radius: 11px; margin-bottom: 14px;
+}
+.size-note svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--text-3); }
+.size-note a { color: var(--accent); font-weight: 600; text-decoration: none; }
 .about-foot { text-align: center; font-size: 12.5px; color: var(--text-3); margin-top: 16px; }
 .list-foot {
   text-align: center; padding: 22px 16px calc(var(--safe-bottom) + 30px); font-size: 12.5px; color: var(--text-3);
