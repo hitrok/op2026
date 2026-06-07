@@ -214,6 +214,8 @@ function applyFilters() {
 
 // ===== リスト描画（スクロールで追加読み込み） =====
 const CHEV = '<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>';
+// シート上部の固定ヘッダー（ハンドル＋閉じるボタン）
+const SHEET_HEAD = '<div class="sheet-head"><div class="grab"></div><button class="sheet-close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>';
 
 function renderList() {
   const el = $('#listView');
@@ -285,7 +287,7 @@ function openSheet(s) {
     <button class="act-btn sec" id="showOnMap">${ICON.mapPin}地図で見る</button>
   </div>`;
 
-  $('#sheet').innerHTML = `<div class="grab"></div>
+  $('#sheet').innerHTML = `${SHEET_HEAD}
     <div class="s-cats">${cats}</div>
     <h2>${esc(s.store_name)}</h2>
     ${s.store_name_kana ? `<div class="kana">${esc(s.store_name_kana)}</div>` : ''}
@@ -313,7 +315,7 @@ function openAbout() {
     detailRow(ICON.clock, '最終更新', esc(upd) + `<div style="font-size:12.5px;color:var(--text-3);margin-top:2px">右上の ⟳ で最新の加盟店を取得できます</div>`),
     detailRow(ICON.web, '地図・位置情報', 'OpenStreetMap / CARTO / 国土地理院'),
   ];
-  $('#sheet').innerHTML = `<div class="grab"></div>
+  $('#sheet').innerHTML = `${SHEET_HEAD}
     <h2>大分市プレミアム付き商品券2026<br><span style="font-size:16px;color:var(--text-2);font-weight:600">加盟店マップ</span></h2>
     <div class="kana">加盟店を地図で探せる非公式マップです。最新・正確な情報は必ず公式サイトでご確認ください。</div>
     <div class="detail-list">${rows.join('')}</div>
@@ -526,6 +528,29 @@ function wire() {
   $('#aboutBtn').addEventListener('click', openAbout);
   $('#creditLink').addEventListener('click', () => track('credit_click'));
   $('#sheetBackdrop').addEventListener('click', closeSheet);
+
+  // 閉じる：×ボタン / ハンドルのタップ
+  $('#sheet').addEventListener('click', (e) => {
+    if (e.target.closest('.sheet-close') || e.target.closest('.grab')) closeSheet();
+  });
+  // 閉じる：ヘッダーを下にスワイプ
+  const sheet = $('#sheet');
+  let dy = null, y0 = 0;
+  sheet.addEventListener('touchstart', (e) => {
+    if (!e.target.closest('.sheet-head')) { dy = null; return; }
+    y0 = e.touches[0].clientY; dy = 0; sheet.style.transition = 'none';
+  }, { passive: true });
+  sheet.addEventListener('touchmove', (e) => {
+    if (dy === null) return;
+    const d = e.touches[0].clientY - y0;
+    if (d > 0) { dy = d; sheet.style.transform = `translateY(${d}px)`; }
+  }, { passive: true });
+  sheet.addEventListener('touchend', () => {
+    if (dy === null) return;
+    sheet.style.transition = ''; sheet.style.transform = '';
+    if (dy > 90) closeSheet();
+    dy = null;
+  });
 
   let qT;
   $('#search').addEventListener('input', (e) => {
