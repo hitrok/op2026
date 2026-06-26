@@ -99,35 +99,38 @@
       </a>
     </div>
 
-    <div class="search-wrap">
-      <svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="search" placeholder="店名・住所・業種で検索" inputmode="search" autocomplete="off" enterkeyhint="search">
-      <button class="search-clear" id="searchClear" aria-label="検索をクリア">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-
-    <button class="ai-btn" id="aiBtn" aria-label="AIにおすすめを聞く" title="やりたいことを入力してAIにおすすめを聞く">
-      <svg class="ai-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.6 4.6L18 8l-4.4 1.4L12 14l-1.6-4.6L6 8l4.4-1.4L12 2zm6 9l.9 2.6L21 14l-2.1.7L18 17l-.9-2.3L15 14l2.1-.4L18 11zM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13z"/></svg>
-      <span>「家族でランチ」などAIにおすすめを聞く</span>
-    </button>
-
-    <div class="chips" id="chips"></div>
-
-    <button class="adv-toggle" id="advToggle">
-      絞り込み
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    <button class="adv-toggle" id="advToggle" aria-expanded="false" aria-controls="advPanel">
+      <svg class="adv-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      検索・絞り込み
+      <svg class="adv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
     </button>
     <div class="adv-panel" id="advPanel">
-      <select id="sizeSelect" aria-label="店舗区分で絞り込み">
-        <option value="">店舗区分：すべて</option>
-        <option value="large">大規模店舗</option>
-        <option value="small">中小・小規模店舗</option>
-      </select>
-      <select id="minorSelect" aria-label="業種で絞り込み"><option value="">すべての業種</option></select>
-      <label class="toggle-row">デジタル対応のみ
-        <span class="switch"><input type="checkbox" id="digitalOnly"><span class="track"><span class="thumb"></span></span></span>
-      </label>
+      <div class="search-wrap">
+        <svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" type="search" placeholder="店名・住所・業種で検索" inputmode="search" autocomplete="off" enterkeyhint="search">
+        <button class="search-clear" id="searchClear" aria-label="検索をクリア">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <button class="ai-btn" id="aiBtn" aria-label="AIにおすすめを聞く" title="やりたいことを入力してAIにおすすめを聞く">
+        <svg class="ai-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.6 4.6L18 8l-4.4 1.4L12 14l-1.6-4.6L6 8l4.4-1.4L12 2zm6 9l.9 2.6L21 14l-2.1.7L18 17l-.9-2.3L15 14l2.1-.4L18 11zM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13z"/></svg>
+        <span>「家族でランチ」などAIにおすすめを聞く</span>
+      </button>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="adv-row">
+        <select id="sizeSelect" aria-label="店舗区分で絞り込み">
+          <option value="">店舗区分：すべて</option>
+          <option value="large">大規模店舗</option>
+          <option value="small">中小・小規模店舗</option>
+        </select>
+        <select id="minorSelect" aria-label="業種で絞り込み"><option value="">すべての業種</option></select>
+        <label class="toggle-row">デジタル対応のみ
+          <span class="switch"><input type="checkbox" id="digitalOnly"><span class="track"><span class="thumb"></span></span></span>
+        </label>
+      </div>
     </div>
   </header>
 

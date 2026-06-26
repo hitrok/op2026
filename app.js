@@ -703,7 +703,9 @@ function wire() {
   });
 
   $('#advToggle').addEventListener('click', () => {
-    $('#advToggle').classList.toggle('open'); $('#advPanel').classList.toggle('open');
+    const open = $('#advPanel').classList.toggle('open');
+    $('#advToggle').classList.toggle('open', open);
+    $('#advToggle').setAttribute('aria-expanded', String(open));
   });
   $('#minorSelect').addEventListener('change', (e) => { aiActive = false; aiCriteria = null; filters.minor = e.target.value; applyFilters(); });
   $('#sizeSelect').addEventListener('change', (e) => { aiActive = false; aiCriteria = null; filters.size = e.target.value; track('filter_size', { size: e.target.value }); applyFilters(); });

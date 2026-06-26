@@ -175,10 +175,15 @@ input, select { font-family: inherit; font-size: 17px; }
   margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--accent);
   display: inline-flex; align-items: center; gap: 4px;
 }
-.adv-toggle svg { width: 15px; height: 15px; transition: transform .2s; }
-.adv-toggle.open svg { transform: rotate(180deg); }
-.adv-panel { display: none; gap: 10px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
-.adv-panel.open { display: flex; }
+.adv-toggle svg { width: 15px; height: 15px; }
+.adv-toggle .adv-ic { color: var(--text-3); }
+.adv-toggle .adv-chev { transition: transform .2s; }
+.adv-toggle.open .adv-chev { transform: rotate(180deg); }
+/* 検索ボックス・タグ・絞り込みをまとめて開閉。既定は閉じて地図エリアを広く取る。 */
+.adv-panel { display: none; margin-top: 10px; }
+.adv-panel.open { display: flex; flex-direction: column; align-items: stretch; gap: 11px; }
+.adv-panel .search-wrap, .adv-panel .ai-btn, .adv-panel .chips { margin-top: 0; }
+.adv-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .adv-panel select {
   border: none; background: var(--field); color: var(--text);
   border-radius: 10px; padding: 9px 12px; max-width: 100%; flex: 1; min-width: 160px;
