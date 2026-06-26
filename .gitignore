@@ -12,3 +12,7 @@ scripts/qa_suspects.json
 scripts/fix_gsi_cache.json
 scripts/fix_nomi_cache.json
 data/stores.geo.fixed.json
+
+# Python bytecode cache
+__pycache__/
+*.pyc

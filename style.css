@@ -368,3 +368,50 @@ input, select { font-family: inherit; font-size: 17px; }
 .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.7) !important; }
 @media (prefers-color-scheme: dark) { .leaflet-control-attribution { background: rgba(0,0,0,.5) !important; } .leaflet-control-attribution a { color: #6cf !important; } }
 .leaflet-bar a { border-radius: 8px !important; }
+
+/* ===== SEO/AIO 用の追記（地図アプリの下にクロール可能なコンテンツを置く） ===== */
+/* 地図アプリは1画面分の高さ（ヒーロー）に固定し、その下に .seo-content を通常フローで流す。
+   これでページがスクロールでき、本文が「可視」のままクローラブルになる。 */
+html, body { height: auto; min-height: 100%; }
+#app { height: 100vh; height: 100dvh; }
+
+.listlink {
+  flex: none; display: inline-flex; align-items: center;
+  font-size: 12.5px; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--sep-strong); border-radius: 999px;
+  padding: 4px 11px; margin-left: auto; margin-right: 8px; text-decoration: none;
+}
+.listlink:hover { background: var(--field); }
+
+.seo-content {
+  max-width: 880px; margin: 0 auto; padding: 28px 16px 64px;
+  color: var(--text); border-top: 1px solid var(--sep);
+}
+.seo-content h2 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.32; margin: .2em 0 .5em; }
+.seo-content h3 { font-size: 16.5px; font-weight: 700; margin: 1.5em 0 .5em; }
+.seo-content p { font-size: 15px; line-height: 1.7; color: var(--text-2); margin: .5em 0 1em; }
+.seo-content p strong, .seo-content p b { color: var(--text); }
+.seo-content a { color: var(--accent); text-decoration: none; }
+.seo-content a:hover { text-decoration: underline; }
+.seo-content .seo-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.seo-content .seo-links a {
+  display: inline-block; background: var(--card); border: 1px solid var(--sep-strong);
+  border-radius: 999px; padding: 6px 13px; font-size: 14px; font-weight: 600; color: var(--text);
+}
+.seo-content .seo-links a:hover { border-color: var(--accent); text-decoration: none; }
+.seo-content details {
+  background: var(--card); border: 1px solid var(--sep); border-radius: 12px;
+  padding: 0 14px; margin-bottom: 8px;
+}
+.seo-content details summary { font-weight: 700; cursor: pointer; padding: 12px 0; font-size: 15px; list-style: none; }
+.seo-content details summary::-webkit-details-marker { display: none; }
+.seo-content details summary::before { content: "＋ "; color: var(--accent); font-weight: 800; }
+.seo-content details[open] summary::before { content: "− "; }
+.seo-content details p { margin: 0 0 12px; font-size: 14.5px; }
+.seo-content .foot { margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--sep); font-size: 13px; color: var(--text-3); }
+.seo-content .foot b { color: var(--cat-stay); }
+.seo-content .foot a { color: var(--text-2); }
+/* ヘッダの恒久「非公式」チップ（注意バナーを閉じても常に見える） */
+.ofcl{display:inline-block;font-size:11px;font-weight:800;vertical-align:middle;
+  color:var(--text-2);background:var(--field);border:1px solid var(--sep-strong);
+  border-radius:6px;padding:0 6px;line-height:1.7;letter-spacing:.02em;}

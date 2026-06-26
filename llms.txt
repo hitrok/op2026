@@ -1,0 +1,39 @@
+# 大分市プレミアム付き商品券2026 加盟店マップ（非公式・株式会社plan8制作）
+
+> 大分市プレミアム付き商品券2026が使える加盟店2,603店を検索・カテゴリ別・エリア別・業種別・地図表示できる非公式まとめ。データ最終更新 2026-06-26。本サイトは非公式であり、最新・正確な情報は公式サイト(https://2026.oita-pay.jp)でご確認ください。
+
+## 概要（件数）
+- 総加盟店数: 2,603店
+- カテゴリ別: 買う 1,204 / 食べる 870 / 暮らす 479 / 遊ぶ 45 / 泊まる 5
+- 対応: デジタル対応 2,411店 / 紙対応 2,565店
+- 規模: 中小・小規模店 2,018店 / 大規模店 585店
+
+## 主要ページ
+- [加盟店一覧（全2,603店）](https://op2026.plan8.jp/list/)
+- [カテゴリ: 買う](https://op2026.plan8.jp/c/kau/) / [食べる](https://op2026.plan8.jp/c/taberu/) / [暮らす](https://op2026.plan8.jp/c/kurasu/)
+- ジャンル: 衣類(255店) → https://op2026.plan8.jp/g/fashion/
+- ジャンル: 居酒屋(177店) → https://op2026.plan8.jp/g/izakaya/
+- ジャンル: コンビニ(169店) → https://op2026.plan8.jp/g/konbini/
+- ジャンル: エステ(131店) → https://op2026.plan8.jp/g/salon/
+- ジャンル: 和食(105店) → https://op2026.plan8.jp/g/washoku/
+- ジャンル: カフェ(101店) → https://op2026.plan8.jp/g/cafe/
+- ジャンル: 理容室(98店) → https://op2026.plan8.jp/g/beauty/
+- ジャンル: 焼肉(91店) → https://op2026.plan8.jp/g/yakiniku/
+- ジャンル: スーパー(83店) → https://op2026.plan8.jp/g/super/
+- ジャンル: ドラッグストア(81店) → https://op2026.plan8.jp/g/drugstore/
+- エリア: 要町(197店) → https://op2026.plan8.jp/area/kanamemachi/
+- エリア: 中央町(172店) → https://op2026.plan8.jp/area/chuomachi/
+- エリア: 府内町(159店) → https://op2026.plan8.jp/area/funaimachi/
+- エリア: 公園通り西(98店) → https://op2026.plan8.jp/area/koendori-nishi/
+- エリア: 都町(94店) → https://op2026.plan8.jp/area/miyakomachi/
+- エリア: 玉沢(88店) → https://op2026.plan8.jp/area/tamazawa/
+- エリア: 森町(37店) → https://op2026.plan8.jp/area/morimachi/
+- エリア: 萩原(35店) → https://op2026.plan8.jp/area/hagiwara/
+- [地図で探す（現在地から近い順）](https://op2026.plan8.jp/)
+- [全店データ(テキスト)](https://op2026.plan8.jp/llms-full.txt)
+
+## データ出典
+- 公式サイト: https://2026.oita-pay.jp
+- 公式データ: https://2026.oita-pay.jp/docs/store_list/store_list.json
+- 座標: 国土地理院ジオコーディング（おおよその位置を含む）
+- 制作: 株式会社plan8 https://plan8.jp （非公式）

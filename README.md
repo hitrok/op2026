@@ -29,25 +29,47 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
-### 初期データの再生成（任意）
+### データ更新＋SEOページの再生成
+
+最新の公式データを取り込み、検索向けの静的ページ（後述）も作り直す手順：
 
 ```bash
 curl -s https://2026.oita-pay.jp/docs/store_list/store_list.json -o data/store_list.raw.json
-python3 scripts/geocode.py        # → data/stores.geo.json を再生成
+python3 scripts/refresh.py        # 公式の最新へ増分更新（既存店の座標は保持・新規のみジオコード）
+python3 scripts/build_site.py     # 一覧/カテゴリ/エリア/業種ページ・sitemap・robots・llms を再生成
+git add -A && git commit -m "data refresh" && git push   # GitHub Pages へ反映
 ```
 
-通常はアプリの ⟳ ボタンで最新化できるため、再生成はほぼ不要です。
+- アプリ右上の ⟳ ボタンはブラウザ内（IndexedDB）だけを更新します。**検索エンジン向けの静的ページは ⟳ では更新されない**ので、SEO上の鮮度は必ず上記リビルドで反映します。
+- `scripts/geocode.py` は全件ジオコーディングのフル再生成（QA済み座標を作り直したいときだけ）。通常は座標を保全する `scripts/refresh.py` を使います。
+
+## SEO / AIO 用の静的ページ（自動生成）
+
+`scripts/build_site.py` が `data/stores.geo.json` を唯一の真実の源として、検索エンジン・AI検索に拾われるテキストページを生成します（地図はJS描画なので単体ではクロール不可なため）。
+
+- `index.html` … `<!-- GEN:jsonld -->` / `<!-- GEN:seo -->` の領域に JSON-LD と概要・FAQ・フッターを注入
+- `list/index.html` … 加盟店一覧ハブ（全件の入口）
+- `c/<slug>/` … カテゴリ別（買う/食べる/暮らす/遊ぶ/泊まる、大きいものは `/2/` で連番分割）
+- `g/<slug>/` … 主要業種（居酒屋・コンビニ 等）／ `area/<slug>/` … 主要エリア（要町・中央町 等）
+- `robots.txt`（AIクローラ明示許可）・`sitemap.xml`・`llms.txt`・`llms-full.txt`
+
+方針：**非公式**表示と公式リンクを全ページ恒久表示／件数・日付はビルドで一括算出して常に同期／電話番号は出力しない（PII配慮）。
 
 ## 構成
 
 ```
-├── index.html      UI
-├── style.css       スタイル（ライト/ダーク）
-├── app.js          本体（地図・検索・現在地・更新・ジオコーディング）
+├── index.html      地図UI（+ build_site.py が生成領域を注入）
+├── style.css       スタイル（ライト/ダーク・SEOページ）
+├── app.js          本体（地図・検索・現在地・更新・/#store= /?q= 受け）
 ├── data/
-│   └── stores.geo.json   加盟店データ（緯度経度付き）
+│   ├── store_list.raw.json   公式データ取得そのまま
+│   └── stores.geo.json       加盟店データ（緯度経度付き・正本）
+├── list/ c/ g/ area/         生成された検索向けページ（build_site.py 出力）
+├── robots.txt sitemap.xml llms.txt llms-full.txt   生成物
 └── scripts/
-    └── geocode.py        住所→緯度経度の生成スクリプト
+    ├── geocode.py    住所→緯度経度（フル再生成）
+    ├── refresh.py    公式最新への増分更新（座標保全）
+    └── build_site.py 静的SEO/AIOページ生成器
 ```
 
 ## 出典・注意

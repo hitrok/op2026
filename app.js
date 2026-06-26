@@ -341,6 +341,28 @@ function focusStore(s) {
   if (m) setTimeout(() => { try { cluster.zoomToShowLayer(m, () => m.fire('click')); } catch { openSheet(s); } }, 350);
 }
 
+// 静的な一覧/カテゴリページからの遷移を受ける。
+//  - /#store=<store_id> … その店を地図で開く（一覧ページの店名リンク）
+//  - /?q=<検索語>        … 検索語で絞り込んで一覧表示（WebSite SearchAction の着地）
+function handleDeepLink() {
+  try {
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) {
+      $('#search').value = q;
+      $('#searchClear').classList.add('show');
+      filters.q = norm(q).trim();
+      applyFilters();
+      setView('list');
+    }
+    const m = (location.hash || '').match(/store=([^&]+)/);
+    if (m) {
+      const id = decodeURIComponent(m[1]);
+      const s = stores.find((x) => x.store_id === id);
+      if (s) { (s.lat != null) ? focusStore(s) : openSheet(s); }
+    }
+  } catch (e) { /* noop */ }
+}
+
 // ===== 現在地 =====
 function locate() {
   if (!navigator.geolocation) { toast('この端末では現在地を取得できません'); return; }
@@ -620,6 +642,7 @@ async function boot() {
   buildMarkers();
   applyFilters();
   setView('map');
+  handleDeepLink();
   $('#boot').classList.add('hide');
 }
 boot();
