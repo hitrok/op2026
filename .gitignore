@@ -16,3 +16,6 @@ data/stores.geo.fixed.json
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# Supabase CLI のリンク状態（ホストはsantakuプロジェクト・公開リポジトリに含めない）
+supabase/.temp/

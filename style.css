@@ -415,3 +415,43 @@ html, body { height: auto; min-height: 100%; }
 .ofcl{display:inline-block;font-size:11px;font-weight:800;vertical-align:middle;
   color:var(--text-2);background:var(--field);border:1px solid var(--sep-strong);
   border-radius:6px;padding:0 6px;line-height:1.7;letter-spacing:.02em;}
+
+/* ===== AIでおすすめ ===== */
+.ai-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; margin-top: 10px; padding: 10px 14px;
+  border: 1px solid var(--sep-strong); border-radius: 12px;
+  background: var(--card); color: var(--text); font-size: 14px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ai-btn:hover { background: var(--field); }
+.ai-btn .ai-ic { width: 17px; height: 17px; color: var(--accent); flex: none; }
+.ai-btn.loading { opacity: .6; pointer-events: none; }
+.ai-btn.loading .ai-ic { animation: ai-spin 1s linear infinite; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+
+.ai-banner {
+  margin: 0 0 6px; padding: 13px 15px;
+  background: linear-gradient(180deg, rgba(0,122,255,.08), rgba(0,122,255,.03));
+  border-bottom: 1px solid var(--sep);
+}
+@media (prefers-color-scheme: dark) {
+  .ai-banner { background: linear-gradient(180deg, rgba(10,132,255,.16), rgba(10,132,255,.05)); }
+}
+.ai-banner-top { display: flex; align-items: center; gap: 7px; }
+.ai-banner-top b { font-size: 14px; }
+.ai-banner .ai-spark { font-size: 15px; }
+.ai-banner .ai-clear {
+  margin-left: auto; border: 1px solid var(--sep-strong); border-radius: 999px;
+  background: var(--bg-solid); color: var(--text-2); font-size: 12px; font-weight: 600;
+  padding: 3px 11px; cursor: pointer;
+}
+.ai-reason { margin: 7px 0 0; font-size: 14px; line-height: 1.6; color: var(--text); }
+.ai-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.ai-tag {
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: var(--bg-solid); border: 1px solid var(--sep-strong);
+  border-radius: 999px; padding: 2px 9px;
+}
+.ai-note { margin-top: 8px; font-size: 11.5px; color: var(--text-3); }
+.ai-note a { color: var(--text-2); }

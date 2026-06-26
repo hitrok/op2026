@@ -8,6 +8,8 @@
 const SRC = 'https://2026.oita-pay.jp/docs/store_list/store_list.json'; // 最新加盟店データ
 const GSI = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q='; // ジオコーダ
 const BASELINE = 'data/stores.geo.json'; // 同梱の初期データ
+// フリーテキスト→おすすめ条件（Claude Haiku）プロキシ。キーはサーバ側(santaku Edge Function)が保持。
+const RECOMMEND_URL = 'https://noarrgikglfcprjiuqtf.supabase.co/functions/v1/oitapay-recommend';
 const DATA_VERSION = 2;  // 座標の補正版。上げると保存済みデータの座標をbaselineで再シードする
 const OITA_CENTER = [33.2335, 131.6075];
 
@@ -31,6 +33,9 @@ let userPos = null;              // {lat,lng}
 let dataMeta = null;             // {updatedAt,count}（更新後のみ）
 let view = 'map';
 const filters = { majors: new Set(), minor: '', q: '', digital: false, size: '' };
+let aiActive = false;          // 「AIでおすすめ」モード
+let aiCriteria = null;         // {categories,genres,keywords,payment,size,reason}
+let aiLoading = false;
 
 // 店舗区分（公式表記：大規模店舗 / 中小・小規模店舗）— 商品券の券種に関わる重要な区別
 function sizeInfo(s) {
@@ -186,6 +191,87 @@ function matchStore(s) {
   return true;
 }
 
+// ===== AIでおすすめ（フリーテキスト→条件） =====
+// Claude が返した条件で各店をスコアリング。カテゴリ・業種一致を主、キーワードを従に加点する。
+function aiScoreOf(s) {
+  const c = aiCriteria;
+  let score = 0;
+  const catHit = c.categories.length && c.categories.includes(s.store_category_major_name);
+  if (catHit) score += 3;
+  const minor = norm(s.store_category_minor_name);
+  let genreHit = false;
+  for (const g of c.genres) {
+    const head = norm((g || '').split('・')[0]); // 「和食・すし・割烹」→「和食」で部分一致
+    if (head && (minor.includes(head) || head.includes(minor))) { score += 4; genreHit = true; break; }
+  }
+  let kwHit = false;
+  if (c.keywords.length) {
+    const hay = norm(`${s.store_name} ${s.store_name_kana} ${s.store_category_minor_name} ${s.address_1} ${s.address_2}`);
+    for (const k of c.keywords) {
+      const kn = norm(k);
+      if (kn && kn.length >= 2 && hay.includes(kn)) { score += 2; kwHit = true; }
+    }
+  }
+  s._catHit = catHit; s._genreHit = genreHit; s._kwHit = kwHit;
+  return score;
+}
+function aiMatch(s, relax) {
+  const c = aiCriteria;
+  // 対応(デジタル/紙)・規模の絞り込み（AIが明示したときだけ）
+  if (c.payment === 'digital' && !s.digital_coupon) return false;
+  if (c.payment === 'paper' && !s.paper_coupon) return false;
+  if (c.size === 'small' && !s.is_small_store) return false;
+  if (c.size === 'large' && s.is_small_store) return false;
+  const score = aiScoreOf(s);
+  s._ai = score;
+  // 通常は「業種/キーワード一致」に絞って“おすすめ感”を出す。relax時はカテゴリ一致まで広げる（0件回避）。
+  const hasGK = c.genres.length || c.keywords.length;
+  if (relax) return c.categories.length ? s._catHit : score > 0;
+  if (hasGK) return s._genreHit || s._kwHit;
+  if (c.categories.length) return s._catHit;
+  return true;
+}
+
+async function aiRecommend() {
+  const q = ($('#search').value || '').trim();
+  if (!q) { $('#search').focus(); toast('やりたいこと（例：家族でランチ）を入力してください'); return; }
+  if (aiLoading) return;
+  aiLoading = true;
+  const btn = $('#aiBtn'); if (btn) btn.classList.add('loading');
+  try {
+    const res = await fetch(RECOMMEND_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: q.slice(0, 200) }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || json.error || 'おすすめの取得に失敗しました');
+    aiCriteria = {
+      categories: Array.isArray(json.categories) ? json.categories : [],
+      genres: Array.isArray(json.genres) ? json.genres : [],
+      keywords: Array.isArray(json.keywords) ? json.keywords : [],
+      payment: json.payment || 'any',
+      size: json.size || 'any',
+      reason: String(json.reason || ''),
+      query: q,
+    };
+    aiActive = true;
+    track('ai_recommend', { q });
+    applyFilters();
+    setView('list');
+    $('#listView').scrollTop = 0;
+  } catch (e) {
+    toast(e instanceof Error ? e.message : 'おすすめの取得に失敗しました');
+  } finally {
+    aiLoading = false;
+    if (btn) btn.classList.remove('loading');
+  }
+}
+function clearAi() {
+  aiActive = false; aiCriteria = null;
+  applyFilters();
+}
+
 // リストの距離は「地図の中心」基準（いま見ている場所から近い順）
 function rankByCenter() {
   const c = map.getCenter();
@@ -195,8 +281,16 @@ function rankByCenter() {
 }
 
 function applyFilters() {
-  filtered = stores.filter(matchStore);
-  rankByCenter();
+  if (aiActive && aiCriteria) {
+    filtered = stores.filter((s) => aiMatch(s, false));
+    if (!filtered.length) filtered = stores.filter((s) => aiMatch(s, true)); // 0件ならカテゴリまで緩める
+    const c = map.getCenter(); const ref = { lat: c.lat, lng: c.lng };
+    for (const s of filtered) s._d = (s.lat != null) ? distM(ref, s) : Infinity;
+    filtered.sort((a, b) => (b._ai - a._ai) || (a._d - b._d)); // スコア優先、近い順は同点時
+  } else {
+    filtered = stores.filter(matchStore);
+    rankByCenter();
+  }
   // 地図のマーカー更新
   const layers = [];
   for (const s of filtered) { const m = markersById.get(s.store_id); if (m) layers.push(m); }
@@ -225,7 +319,15 @@ function renderList() {
       <p>該当するお店がありません</p></div>`;
     return;
   }
-  const hint = '地図の中心から近い順';
+  const hint = aiActive ? `「${esc(aiCriteria.query)}」のおすすめ順` : '地図の中心から近い順';
+  const banner = (aiActive && aiCriteria)
+    ? `<div class="ai-banner">
+        <div class="ai-banner-top"><span class="ai-spark">✨</span><b>AIのおすすめ</b><button class="ai-clear" id="aiClear">解除</button></div>
+        ${aiCriteria.reason ? `<p class="ai-reason">${esc(aiCriteria.reason)}</p>` : ''}
+        <div class="ai-tags">${[...aiCriteria.categories, ...aiCriteria.genres.map((g) => g.split('・')[0])].slice(0, 8).map((t) => `<span class="ai-tag">${esc(t)}</span>`).join('')}</div>
+        <div class="ai-note">該当 ${filtered.length.toLocaleString()}件・最新/正確な情報は<a href="https://2026.oita-pay.jp/" target="_blank" rel="noopener">公式</a>で確認を</div>
+      </div>`
+    : '';
   const slice = filtered.slice(0, listLimit);
   const rows = slice.map((s) => {
     const { color, emoji } = catOf(s.store_category_major_name);
@@ -242,7 +344,7 @@ function renderList() {
   const more = filtered.length > listLimit
     ? `<div class="list-hint" id="moreSentinel">あと ${(filtered.length - listLimit).toLocaleString()} 件…</div>`
     : `<div class="list-foot">大分市プレミアム付き商品券2026 加盟店マップ<br>制作 <a href="https://plan8.jp" target="_blank" rel="noopener">plan8</a> ・ 非公式ツール</div>`;
-  el.innerHTML = `<div class="list-hint">${hint}</div>${rows}${more}`;
+  el.innerHTML = `${banner}<div class="list-hint">${hint}</div>${rows}${more}`;
 }
 
 function esc(s) {
@@ -500,6 +602,7 @@ function buildChips() {
   el.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => onChip(c)));
 }
 function onChip(c) {
+  aiActive = false; aiCriteria = null; // カテゴリ操作＝通常絞り込み
   const major = c.dataset.major;
   if (major === '') { filters.majors.clear(); }
   else {
@@ -548,6 +651,7 @@ function wire() {
   $('#locFab').addEventListener('click', locate);
   $('#refreshBtn').addEventListener('click', update);
   $('#aboutBtn').addEventListener('click', openAbout);
+  $('#aiBtn') && $('#aiBtn').addEventListener('click', aiRecommend);
   $('#creditLink').addEventListener('click', () => track('credit_click'));
   $('#sheetBackdrop').addEventListener('click', closeSheet);
 
@@ -578,18 +682,24 @@ function wire() {
   $('#search').addEventListener('input', (e) => {
     const v = e.target.value;
     $('#searchClear').classList.toggle('show', !!v);
-    clearTimeout(qT); qT = setTimeout(() => { filters.q = norm(v).trim(); applyFilters(); }, 180);
+    clearTimeout(qT); qT = setTimeout(() => {
+      aiActive = false; aiCriteria = null; // 手入力＝通常検索（AIモードを抜ける）
+      filters.q = norm(v).trim(); applyFilters();
+    }, 180);
   });
+  // Enterキーでも「AIでおすすめ」を実行（入力途中の通常検索は維持）
+  $('#search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); aiRecommend(); } });
   $('#searchClear').addEventListener('click', () => {
-    $('#search').value = ''; filters.q = ''; $('#searchClear').classList.remove('show'); applyFilters(); $('#search').focus();
+    $('#search').value = ''; filters.q = ''; aiActive = false; aiCriteria = null;
+    $('#searchClear').classList.remove('show'); applyFilters(); $('#search').focus();
   });
 
   $('#advToggle').addEventListener('click', () => {
     $('#advToggle').classList.toggle('open'); $('#advPanel').classList.toggle('open');
   });
-  $('#minorSelect').addEventListener('change', (e) => { filters.minor = e.target.value; applyFilters(); });
-  $('#sizeSelect').addEventListener('change', (e) => { filters.size = e.target.value; track('filter_size', { size: e.target.value }); applyFilters(); });
-  $('#digitalOnly').addEventListener('change', (e) => { filters.digital = e.target.checked; applyFilters(); });
+  $('#minorSelect').addEventListener('change', (e) => { aiActive = false; aiCriteria = null; filters.minor = e.target.value; applyFilters(); });
+  $('#sizeSelect').addEventListener('change', (e) => { aiActive = false; aiCriteria = null; filters.size = e.target.value; track('filter_size', { size: e.target.value }); applyFilters(); });
+  $('#digitalOnly').addEventListener('change', (e) => { aiActive = false; aiCriteria = null; filters.digital = e.target.checked; applyFilters(); });
 
   // 非公式の注意書き（×で閉じたら記憶）
   try { if (localStorage.getItem('op26_notice_hidden')) $('#notice').style.display = 'none'; } catch (e) { }
@@ -599,6 +709,7 @@ function wire() {
   });
 
   $('#listView').addEventListener('click', (e) => {
+    if (e.target.closest('#aiClear')) { clearAi(); return; }
     const row = e.target.closest('.row'); if (!row) return;
     const s = stores.find((x) => x.store_id === row.dataset.id); if (s) openSheet(s);
   });
