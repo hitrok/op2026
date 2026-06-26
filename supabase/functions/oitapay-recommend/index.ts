@@ -15,8 +15,9 @@ import postgres from "https://deno.land/x/postgresjs@v3.4.5/mod.js";
 
 const MODEL = "claude-haiku-4-5";
 const MAX_QUERY_LEN = 200;
-const RATE_MAX = 40; // 1IPあたり
+const RATE_MAX = 40; // 1IPあたり / RATE_WINDOW_MIN
 const RATE_WINDOW_MIN = 10; // 分
+const DAILY_MAX = 2000; // 全体の1日あたり呼び出し上限（コスト暴走の最終ガード。≈¥1,000/日）
 
 const ALLOWED_ORIGINS = new Set([
   "https://op2026.plan8.jp",
@@ -65,9 +66,17 @@ function db() {
   sql = postgres(url, { prepare: false, idle_timeout: 20, max: 2 });
   return sql;
 }
-async function rateLimited(ip: string): Promise<boolean> {
+// レート制限の判定。返り値 {ok, code?, msg?}。
+//  - 1IPあたり RATE_MAX/RATE_WINDOW_MIN（fixed window）
+//  - 全体で 1日 DAILY_MAX（日付キーで自動リセット。XFF偽装/IPローテでも効く最終ガード）
+//  方針: DB_URL未設定は可用性優先で通す（既定で注入されるため通常起きない）。
+//        DBがあるのにクエリが失敗した場合は fail-CLOSED（課金暴走を防ぐため拒否）。
+async function checkLimits(ip: string): Promise<{ ok: boolean; code?: string; msg?: string }> {
   const conn = db();
-  if (!conn) return false; // DB未設定 → fail-open（オリジン制限と入力上限で防御）
+  if (!conn) {
+    console.error("SUPABASE_DB_URL not set — rate limiting disabled");
+    return { ok: true };
+  }
   try {
     if (!tableReady) {
       await conn`create table if not exists oitapay_rate_limits (
@@ -77,7 +86,18 @@ async function rateLimited(ip: string): Promise<boolean> {
       )`;
       tableReady = true;
     }
-    const rows = await conn`
+    // 全体の1日上限（JST日付をキーに。日付が変われば自然にリセット）
+    const day = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const g = await conn`
+      insert into oitapay_rate_limits (key, count, window_start)
+      values (${"global:" + day}, 1, now())
+      on conflict (key) do update set count = oitapay_rate_limits.count + 1
+      returning count`;
+    if ((g[0]?.count ?? 0) > DAILY_MAX) {
+      return { ok: false, code: "daily_cap", msg: "本日は混み合っています。時間をおいてお試しください。" };
+    }
+    // 1IPあたり（fixed window）
+    const r = await conn`
       insert into oitapay_rate_limits (key, count, window_start)
       values (${"ip:" + ip}, 1, now())
       on conflict (key) do update set
@@ -86,9 +106,13 @@ async function rateLimited(ip: string): Promise<boolean> {
         window_start = case when oitapay_rate_limits.window_start < now() - (${RATE_WINDOW_MIN} || ' minutes')::interval
                      then now() else oitapay_rate_limits.window_start end
       returning count`;
-    return (rows[0]?.count ?? 0) > RATE_MAX;
-  } catch (_e) {
-    return false; // 可用性優先：DB障害時は素通り
+    if ((r[0]?.count ?? 0) > RATE_MAX) {
+      return { ok: false, code: "rate_limited", msg: "リクエストが多すぎます。少し時間をおいてからお試しください。" };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error("rate limit check failed (fail-closed)", e);
+    return { ok: false, code: "limit_unavailable", msg: "混み合っています。少し時間をおいてお試しください。" };
   }
 }
 
@@ -125,7 +149,9 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405, origin);
 
   // ① オリジン許可リスト（ブラウザからの他サイト埋め込み・タダ乗りを遮断）
-  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+  // Origin が無い/許可外は拒否。正規のブラウザはクロスオリジンPOSTで必ずOriginを送るため、
+  // 「Origin省略(curl等)で素通り」を塞ぐ。
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
     return json({ error: "forbidden origin" }, 403, origin);
   }
 
@@ -140,10 +166,11 @@ Deno.serve(async (req) => {
   if (!query) return json({ error: "query is required" }, 400, origin);
   if (query.length > MAX_QUERY_LEN) query = query.slice(0, MAX_QUERY_LEN);
 
-  // ③ レート制限
+  // ③ レート制限（IP単位＋全体1日上限）
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
-  if (await rateLimited(ip)) {
-    return json({ error: "rate_limited", message: "リクエストが多すぎます。少し時間をおいてからお試しください。" }, 429, origin);
+  const lim = await checkLimits(ip);
+  if (!lim.ok) {
+    return json({ error: lim.code, message: lim.msg }, 429, origin);
   }
 
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -178,13 +205,15 @@ Deno.serve(async (req) => {
     } catch {
       return json({ error: "parse_error" }, 502, origin);
     }
+    // 出力の検証＋上限（max_tokensに頼らず明示的にキャップ）
+    const arr = (v: any, n: number) => (Array.isArray(v) ? v : []).map((x) => String(x)).slice(0, n);
     return json({
-      categories: Array.isArray(parsed.categories) ? parsed.categories : [],
-      genres: Array.isArray(parsed.genres) ? parsed.genres : [],
-      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
-      payment: parsed.payment ?? "any",
-      size: parsed.size ?? "any",
-      reason: String(parsed.reason ?? ""),
+      categories: (Array.isArray(parsed.categories) ? parsed.categories : []).filter((c: any) => CATEGORIES.includes(c)).slice(0, 5),
+      genres: arr(parsed.genres, 12),
+      keywords: arr(parsed.keywords, 8),
+      payment: ["any", "digital", "paper"].includes(parsed.payment) ? parsed.payment : "any",
+      size: ["any", "small", "large"].includes(parsed.size) ? parsed.size : "any",
+      reason: String(parsed.reason ?? "").slice(0, 200),
     }, 200, origin);
   } catch (e) {
     console.error("handler error", e);

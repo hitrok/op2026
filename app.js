@@ -255,6 +255,12 @@ async function aiRecommend() {
       reason: String(json.reason || ''),
       query: q,
     };
+    // 条件が何も取れない（全カラ）→ 全件を“おすすめ”として出さない。言い換えを促す。
+    if (!aiCriteria.categories.length && !aiCriteria.genres.length && !aiCriteria.keywords.length) {
+      aiCriteria = null;
+      toast('うまく条件を読み取れませんでした。言い方を変えてお試しください（例：家族でランチ）');
+      return;
+    }
     aiActive = true;
     track('ai_recommend', { q });
     applyFilters();
@@ -687,8 +693,10 @@ function wire() {
       filters.q = norm(v).trim(); applyFilters();
     }, 180);
   });
-  // Enterキーでも「AIでおすすめ」を実行（入力途中の通常検索は維持）
-  $('#search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); aiRecommend(); } });
+  // Enterキーでも「AIでおすすめ」を実行。日本語IME変換確定のEnter(isComposing/keyCode229)は誤発火させない。
+  $('#search').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); aiRecommend(); }
+  });
   $('#searchClear').addEventListener('click', () => {
     $('#search').value = ''; filters.q = ''; aiActive = false; aiCriteria = null;
     $('#searchClear').classList.remove('show'); applyFilters(); $('#search').focus();
