@@ -731,6 +731,34 @@ function wire() {
   });
 }
 
+// ===== 同梱マスタ(BASELINE)と突き合わせて最新化 =====
+// BASELINE は GitHub Actions で公式から定期更新される「サーバ側で座標付与済みの正データ」。
+// ブラウザのIndexedDBキャッシュが古いままだと新規加盟店が増えず件数が古くなる(例:2,603のまま)。
+// 起動時にBASELINEと突き合わせ、新規追加・掲載終了・属性/座標を自動で取り込む。⟳は公式から即時取得する別経路。
+async function syncWithBaseline() {
+  let base;
+  try {
+    base = await fetch(BASELINE, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+  } catch (e) { return; } // オフライン等は現状のキャッシュを維持
+  if (!Array.isArray(base) || !base.length) return;
+  const cur = new Map(stores.map((s) => [s.store_id, s]));
+  // BASELINE を真実の源に再構成。座標が欠落している店だけ既存キャッシュ座標を温存。
+  const merged = base.map((b) => {
+    const c = cur.get(b.store_id);
+    if (b.lat == null && c && c.lat != null) return Object.assign({}, b, { lat: c.lat, lng: c.lng, geo: c.geo });
+    return b;
+  });
+  const sameSet = merged.length === stores.length && merged.every((m) => cur.has(m.store_id));
+  stores = merged;
+  dataMeta = { updatedAt: (dataMeta && dataMeta.updatedAt) || Date.now(), count: stores.length, baseVersion: DATA_VERSION };
+  try { await idbSet('dataset', stores); await idbSet('meta', dataMeta); } catch (e) { /* 保存失敗は無視 */ }
+  if (!sameSet) {            // 件数・構成が変わった時だけ再描画（チラつき回避）
+    buildMarkers();
+    rebuildMinorOptions();
+    applyFilters();          // 件数表示（#count）も更新される
+  }
+}
+
 // ===== 起動 =====
 async function boot() {
   initMap();
@@ -739,18 +767,8 @@ async function boot() {
     const saved = await idbGet('dataset');
     if (saved && saved.length) {
       dataMeta = await idbGet('meta');
-      // 座標補正版が上がっていたら、保存済みデータの座標をbaselineで再シード（新規店は維持）
-      if (!dataMeta || (dataMeta.baseVersion || 0) < DATA_VERSION) {
-        try {
-          const base = await fetch(BASELINE).then((r) => r.json());
-          const bc = new Map(base.map((b) => [b.store_id, b]));
-          for (const s of saved) { const b = bc.get(s.store_id); if (b) { s.lat = b.lat; s.lng = b.lng; s.geo = b.geo; } }
-          dataMeta = Object.assign({}, dataMeta, { baseVersion: DATA_VERSION });
-          await idbSet('dataset', saved);
-          await idbSet('meta', dataMeta);
-        } catch (e) { /* オフライン時はスキップ */ }
-      }
-      stores = saved;
+      stores = saved;        // キャッシュで即描画（サクサク維持）
+      syncWithBaseline();    // 背景で同梱マスタ（GitHub Actionsで自動更新）と突き合わせ、件数・座標を最新化
     } else {
       stores = await fetch(BASELINE).then((r) => r.json());
     }
