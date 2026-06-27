@@ -27,8 +27,39 @@ DATA = os.path.join(ROOT, "data", "stores.geo.json")
 BASE = "https://op2026.plan8.jp"
 OFFICIAL = "https://2026.oita-pay.jp"
 OFFICIAL_JSON = "https://2026.oita-pay.jp/docs/store_list/store_list.json"
+CITY_OFFICIAL = "https://www.city.oita.oita.jp/o154/shigotosangyo/shokogyo/syouhinken3.html"
 MAKER = "https://plan8.jp"
 PER_PAGE = 250
+FIRST_PUB = "2026-06-06"   # 初回公開日（WebPage.datePublished 用・定数管理）
+
+# ----- 表記ゆれ（呼称の言い換え）---------------------------------------------
+# 公式内で「付」「付き」が併存する: 大分市役所サイトは「付」（送り仮名なし）、
+# 大分商工会議所・公式特設サイト(2026.oita-pay.jp)は「付き」（送り仮名あり）。
+# どちらか一方を“唯一の正式表記”として断定しない。本文での両表記併記は KW_BOTH を使う。
+KW_KI    = "大分市プレミアム付き商品券"   # 付き：商工会議所・公式特設サイト表記
+KW_NOKI  = "大分市プレミアム付商品券"     # 付 ：大分市役所サイト表記
+KW_SHORT = "大分市プレミアム商品券"       # 「付/付き」省略・一般検索の最頻形
+KW_BOTH  = "大分市プレミアム付き商品券（プレミアム付商品券）"  # 1箇所で両表記を括弧併記する安全形
+ALIASES  = [
+    KW_KI + "2026", KW_SHORT + "2026", KW_NOKI, "プレミアム付商品券",
+    "プレミアム付き商品券", "プレミアム商品券", "おおいた市プレミアム商品券",
+    "令和8年度 大分市プレミアム付き商品券", "大分市 商品券 2026", "大分市 商品券",
+]
+
+# ----- 制度の検証済み事実（公式「概要」PDF・大分市サイト＝2026年3月時点）----------
+# 出典: 2026.oita-pay.jp/docs/information/概要.pdf, city.oita.oita.jp/o154/...
+# 非公式サイト掲載のため「2026年3月時点」「最新は公式で確認」を必ず併記する。
+FACTS_ASOF = "2026年3月時点"
+PROGRAM_FACTS = [
+    ("プレミアム率", "30%（販売額1万円につき1万3,000円分を購入）"),
+    ("利用期間", "2026年6月1日（月）〜8月31日（月）"),
+    ("購入・チャージ期間", "2026年6月1日（月）〜6月15日（月）"),
+    ("購入上限", "1人4冊まで（最大4万円→5万2,000円分・紙か電子のいずれか一方）"),
+    ("1冊の内訳", "全店舗共通券6,000円分＋中小・小規模店専用券7,000円分＝1万3,000円分"),
+    ("購入方法", "事前申込制の抽選方式（先着ではありません）"),
+    ("購入対象", "大分県内在住者（大分市在住者を優先）"),
+    ("発行総数", "34万9,000冊（紙10万4,700冊／電子24万4,300冊）"),
+]
 
 esc = html.escape
 
@@ -50,14 +81,26 @@ GENRE_SLUG = {
     "ドラッグストア": "drugstore", "食堂・レストラン": "restaurant",
     "時計・宝石・メガネ・コンタクト": "watch-jewelry", "和菓子・洋菓子": "sweets",
     "ラーメン": "ramen", "ガソリンスタンド": "gas", "家電": "kaden",
+    # 追加（しきい値20以上の業種でロングテールを拡張）
+    "惣菜・弁当屋": "bento", "軽食・ファストフード": "fastfood",
+    "自動車販売・整備・修理・タイヤ": "car", "スナック・ラウンジ・Bar": "bar",
+    "医療・介護・福祉": "care", "美容・化粧品店": "cosme",
+    "イタリアン・フレンチ": "italian-french", "うどん、そば": "udon-soba",
+    "中華料理": "chuka", "タクシー・レンタカー": "taxi",
+    "自転車・バイク販売・修理": "bike", "造園・住宅関連": "housing",
+    "パン・ベーカリー": "bakery",
 }
 # 上位エリア（address_1 の町名）→ ローマ字slug。ここに無い町はエリアページを作らない。
+# ※ "大分市市" "大分市森" 等の住所パース由来のノイズ町名は意図的に含めない。
 AREA_SLUG = {
     "大分市要町": "kanamemachi", "大分市中央町": "chuomachi", "大分市府内町": "funaimachi",
     "大分市公園通り西": "koendori-nishi", "大分市都町": "miyakomachi", "大分市玉沢": "tamazawa",
     "大分市森町": "morimachi", "大分市萩原": "hagiwara", "大分市田中町": "tanakamachi",
     "大分市中戸次": "nakahetsugi", "大分市下郡": "shimogori", "大分市金池町": "kanaikemachi",
     "大分市大手町": "otemachi", "大分市皆春": "minaharu", "大分市畑中": "hatanaka",
+    # 追加（しきい値20以上の実在町名でロングテールを拡張）
+    "大分市賀来南": "kakuminami", "大分市上宗方": "kamimunakata", "大分市光吉": "mitsuyoshi",
+    "大分市高城西町": "takajo-nishimachi", "大分市政所": "mandokoro",
 }
 
 
@@ -94,10 +137,28 @@ from collections import Counter
 genre_counter = Counter(s.get("store_category_minor_name", "") for s in stores)
 area_counter = Counter(area_of(s) for s in stores)
 # 生成対象（slug定義があり、件数が一定以上）
-GENRES = [(g, GENRE_SLUG[g], genre_counter[g]) for g in GENRE_SLUG if genre_counter[g] >= 40]
+GENRES = [(g, GENRE_SLUG[g], genre_counter[g]) for g in GENRE_SLUG if genre_counter[g] >= 20]
 GENRES.sort(key=lambda x: -x[2])
 AREAS = [(a, AREA_SLUG[a], area_counter[a]) for a in AREA_SLUG if area_counter[a] >= 20]
 AREAS.sort(key=lambda x: -x[2])
+
+# 各ジャンル(minor)の親カテゴリ(major)。関連リンク（同カテゴリの他業種）に使う。
+genre_parent = {}
+for _g, _s, _c in GENRES:
+    _maj = Counter(s.get("store_category_major_name") for s in stores
+                   if s.get("store_category_minor_name") == _g)
+    genre_parent[_g] = _maj.most_common(1)[0][0] if _maj else None
+
+# エリア×業種の掛け合わせ（超ロングテール）。薄ページ乱造を避け一定数以上のみ生成。
+COMBO_MIN = 6
+_area_minor = Counter((area_of(s), s.get("store_category_minor_name")) for s in stores)
+COMBOS = []  # (area_name, area_slug, genre_name, genre_slug, count)
+for _aname, _aslug, _ in AREAS:
+    for _gname, _gslug, _ in GENRES:
+        _c = _area_minor.get((_aname, _gname), 0)
+        if _c >= COMBO_MIN:
+            COMBOS.append((_aname, _aslug, _gname, _gslug, _c))
+COMBOS.sort(key=lambda x: -x[4])
 
 
 def fmt(n):
@@ -144,6 +205,12 @@ details p{margin:0 0 12px;color:var(--text2);font-size:14.5px}
 .foot b{color:var(--red)}
 .foot a{color:var(--text2)}
 .back{display:inline-block;margin:18px 0 0;font-weight:600}
+table.sum{border-collapse:collapse;margin:10px 0 6px;font-size:14px;width:100%;max-width:520px}
+table.sum th,table.sum td{border:1px solid var(--sep);padding:6px 12px;text-align:left}
+table.sum th{background:var(--card);color:var(--text2);font-weight:700;white-space:nowrap;width:48%}
+.note{font-size:13px;color:var(--text3);margin:4px 0 0}
+ol.howto{padding-left:22px;margin:8px 0}
+ol.howto li{margin:7px 0;font-size:15px}
 """
 
 FOOTER = (
@@ -173,7 +240,7 @@ def itemlist_json(items, name):
         "@type": "ItemList", "name": name, "numberOfItems": len(items),
         "itemListElement": [
             {"@type": "ListItem", "position": i + 1, "name": s["store_name"],
-             "url": f"{BASE}/#store={s['store_id']}"}
+             "url": f"{BASE}/s/{s['store_id']}/"}
             for i, s in enumerate(items)
         ],
     }
@@ -183,6 +250,24 @@ def jsonld(*objs):
     graph = [o for o in objs if o]
     doc = {"@context": "https://schema.org", "@graph": graph}
     return '<script type="application/ld+json">' + json.dumps(doc, ensure_ascii=False) + "</script>"
+
+
+def webpage_json(url, name, breadcrumb=None, speakable=False, collection=False, about=None):
+    """ページ単位の鮮度シグナル(dateModified)とブレッドクラムを持つ WebPage / CollectionPage。"""
+    o = {
+        "@type": "CollectionPage" if collection else "WebPage",
+        "url": url, "name": name, "inLanguage": "ja",
+        "isPartOf": {"@type": "WebSite", "url": BASE + "/"},
+        "datePublished": FIRST_PUB, "dateModified": BUILD_DATE,
+    }
+    if about:
+        o["about"] = about
+    if breadcrumb:
+        o["breadcrumb"] = breadcrumb
+    if speakable:
+        o["speakable"] = {"@type": "SpeakableSpecification",
+                          "cssSelector": ["h1", ".lead", "details summary"]}
+    return o
 
 
 def store_li(s):
@@ -197,7 +282,7 @@ def store_li(s):
     minor = s.get("store_category_minor_name") or s.get("store_category_major_name") or ""
     return (
         '<li class="s">'
-        f'<a class="n" href="/#store={esc(s["store_id"])}">{esc(s["store_name"])}</a> '
+        f'<a class="n" href="/s/{esc(s["store_id"])}/">{esc(s["store_name"])}</a> '
         f'<span class="g">{esc(minor)}</span>'
         f'<span class="a">{esc(addr(s))}</span>'
         f'<div class="badges">{"".join(badges)}</div>'
@@ -205,13 +290,15 @@ def store_li(s):
     )
 
 
-def page(path, title, desc, h1, lead_html, body_html, breadcrumb, itemlist=None, extra_head=""):
+def page(path, title, desc, h1, lead_html, body_html, breadcrumb, itemlist=None, extra_head="",
+         extra_ld=(), speakable=False, collection=False, about=None):
     """1ページを書き出す。path は ROOT 相対（例 'c/kau/index.html'）。"""
     url = BASE + "/" + os.path.dirname(path).replace("index.html", "")
     url = url.rstrip("/") + "/"
     if path == "index.html":
         url = BASE + "/"
-    ld = jsonld(breadcrumb, itemlist)
+    wp = webpage_json(url, title, breadcrumb, speakable=speakable, collection=collection, about=about)
+    ld = jsonld(breadcrumb, wp, itemlist, *extra_ld)
     out = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -268,21 +355,50 @@ def breadcrumb_html(bc):
 
 
 # ---------------------------------------------------------------- list rendering with pagination
-def render_store_pages(items, slug_dir, title_base, h1_base, desc_base, crumb_parent, kind_label):
-    """items を PER_PAGE ごとに分割して slug_dir/[n/]index.html を生成。生成URL一覧を返す。"""
+def stats_table(items):
+    """AIO/featured snippet 向けの機械可読な内訳サマリー表。"""
+    d = sum(1 for s in items if s.get("digital_coupon"))
+    p = sum(1 for s in items if s.get("paper_coupon"))
+    sm = sum(1 for s in items if s.get("is_small_store"))
+    return (
+        '<table class="sum"><tbody>'
+        f'<tr><th>掲載している使える店</th><td>{fmt(len(items))}店</td></tr>'
+        f'<tr><th>デジタル対応</th><td>{fmt(d)}店</td></tr>'
+        f'<tr><th>紙対応</th><td>{fmt(p)}店</td></tr>'
+        f'<tr><th>中小・小規模店</th><td>{fmt(sm)}店</td></tr>'
+        '</tbody></table>'
+    )
+
+
+def related_block(heading, pairs):
+    """(label, href) のピル群で関連ページへの内部リンクを作る（KW入りアンカーで主題を補強）。"""
+    links = "".join(f'<a class="pill" href="{h}">{esc(l)}</a>' for l, h in pairs if h)
+    return f'<h2>{esc(heading)}</h2><div class="links">{links}</div>' if links else ""
+
+
+def render_store_pages(items, slug_dir, title_base, h1_base, desc_base, crumb_parent, kind_label,
+                       lead_extra="", related_html="", about=None):
+    """items を PER_PAGE ごとに分割して slug_dir/[n/]index.html を生成。生成URL一覧を返す。
+    title_base/h1_base/desc_base は呼び出し側で意図語（店舗/使える店/お店）と表記ゆれを含めて渡す。"""
     items = sorted(items, key=lambda s: s.get("store_id", ""))
     npages = max(1, (len(items) + PER_PAGE - 1) // PER_PAGE)
     urls = []
+    tbl = stats_table(items)
     for p in range(1, npages + 1):
         chunk = items[(p - 1) * PER_PAGE: p * PER_PAGE]
         sub = "" if p == 1 else f"{p}/"
         path = f"{slug_dir}/{sub}index.html"
-        suffix = "" if p == 1 else f"（{p}/{npages}ページ）"
-        title = f"{title_base}{suffix}｜大分市プレミアム商品券2026 加盟店一覧（非公式）"
+        suffix = "" if p == 1 else f"（{p}/{npages}）"
+        title = f"{title_base}{suffix}（非公式）"
         h1 = f"{h1_base}{suffix}"
         # ページ2以降は meta description を一意にする（重複説明の回避）
         desc = desc_base if p == 1 else f"{desc_base}（{p}/{npages}ページ）"
-        lead = f'<p class="lead">{desc_base}このページでは{esc(kind_label)}の加盟店を一覧で確認できます（{fmt(len(items))}店中 {(p-1)*PER_PAGE+1}〜{min(p*PER_PAGE,len(items))}店）。店名をタップすると地図で場所を確認できます。電話番号は各店・公式サイトでご確認ください。</p>'
+        lead = (
+            f'<p class="lead">{desc_base}{lead_extra}'
+            f'このページでは{esc(kind_label)}で大分市プレミアム付き商品券（プレミアム付商品券）2026が使えるお店を一覧で確認できます'
+            f'（{fmt(len(items))}店中 {(p-1)*PER_PAGE+1}〜{min(p*PER_PAGE,len(items))}店）。'
+            f'店名をタップすると地図で場所を確認できます。電話番号は各店・公式サイトでご確認ください。</p>'
+        )
         lst = '<ul class="stores">' + "".join(store_li(s) for s in chunk) + "</ul>"
         pager = ""
         if npages > 1:
@@ -301,9 +417,10 @@ def render_store_pages(items, slug_dir, title_base, h1_base, desc_base, crumb_pa
                 extra += f'<link rel="prev" href="{BASE}/{slug_dir}/' + ("" if p == 2 else f"{p-1}/") + '">'
             if p < npages:
                 extra += f'<link rel="next" href="{BASE}/{slug_dir}/{p+1}/">'
-        body = pager + lst + pager
-        url = page(path, title, desc[:158], h1, lead, body,
-                   crumb, itemlist=itemlist_json(chunk, h1), extra_head=extra)
+        body = (tbl if p == 1 else "") + pager + lst + pager + (related_html if p == 1 else "")
+        url = page(path, title, desc[:158], h1, lead, body, crumb,
+                   itemlist=itemlist_json(chunk, h1), extra_head=extra,
+                   collection=True, about=about or (KW_KI + "2026 加盟店"))
         urls.append((url, "weekly" if p == 1 else "monthly"))
     return urls
 
@@ -325,42 +442,64 @@ def build_categories():
         if not items:
             continue
         slug = CAT_SLUG[c]
-        em = CAT_EMOJI[c]
-        title_base = f"{em}{c}（{fmt(len(items))}店）"
-        h1_base = f"大分市プレミアム商品券2026 「{c}」で使える加盟店一覧（{fmt(len(items))}店）"
-        desc = (f"大分市プレミアム付き商品券2026が使える「{c}」カテゴリの加盟店{fmt(len(items))}店の一覧（非公式）。"
-                f"店名・業種・住所・デジタル/紙対応がわかります。制作:plan8。")
+        n = fmt(len(items))
+        title_base = f"大分市プレミアム商品券2026 {c}で使える店 {n}店一覧"
+        h1_base = f"大分市プレミアム付き商品券2026「{c}」で使える加盟店 店舗一覧（{n}店）"
+        desc = (f"{KW_BOTH}2026が使える「{c}」の加盟店 店舗{n}店の一覧（非公式）。"
+                f"店名・業種・住所・デジタル/紙対応がわかります。使える店・使えるお店を地図でも探せます。制作plan8。")
+        # 関連：配下の主要業種＋ほかのカテゴリ
+        genre_pairs = [(o.split("・")[0].split(" [")[0] + f"（{fmt(cc)}）", f"/g/{gslug}/")
+                       for o, gslug, cc in GENRES if genre_parent.get(o) == c][:6]
+        cat_pairs = [(f"{cc}（{fmt(CAT_COUNT[cc])}）", f"/c/{CAT_SLUG[cc]}/")
+                     for cc in CAT_ORDER if cc != c and CAT_COUNT[cc]]
+        related = (related_block(f"「{c}」の使える店を業種から探す", genre_pairs)
+                   + related_block("ほかのカテゴリで使える店", cat_pairs))
         urls = render_store_pages(items, f"c/{slug}", title_base, h1_base, desc,
-                                  HOME_CRUMB, f"カテゴリ「{c}」")
-        for u, f in urls:
-            add_url(u, f, "0.7" if u.endswith(f"/c/{slug}/") else "0.5")
+                                  HOME_CRUMB, f"「{c}」", related_html=related)
+        for u, fr in urls:
+            add_url(u, fr, "0.7" if u.endswith(f"/c/{slug}/") else "0.5")
 
 
 def build_genres():
     for name, slug, count in GENRES:
         items = [s for s in stores if s.get("store_category_minor_name") == name]
         short = name.split("・")[0].split(" [")[0]
-        title_base = f"{short}（{fmt(count)}店）"
-        h1_base = f"大分市プレミアム商品券2026が使える{short}の加盟店一覧（{fmt(count)}店）"
-        desc = (f"大分市プレミアム付き商品券2026が使える{short}（{esc(name)}）の加盟店{fmt(count)}店の一覧（非公式）。"
-                f"店名・住所・デジタル/紙対応がわかります。制作:plan8。")
+        n = fmt(count)
+        title_base = f"大分市プレミアム商品券2026 {short}で使える店 {n}店一覧"
+        h1_base = f"大分市プレミアム付き商品券2026が使える{short}の店舗一覧（{n}店）"
+        desc = (f"{KW_BOTH}2026が使える{short}（{esc(name)}）の使える店 {n}店の一覧（非公式）。"
+                f"店名・住所・デジタル/紙対応がわかります。制作plan8。")
+        # 関連：親カテゴリ＋同カテゴリの他業種
+        parent = genre_parent.get(name)
+        pairs = []
+        if parent in CAT_SLUG:
+            pairs.append((f"{parent}カテゴリの使える店（{fmt(CAT_COUNT[parent])}）", f"/c/{CAT_SLUG[parent]}/"))
+        sib = [(o.split("・")[0].split(" [")[0] + f"（{fmt(cc)}）", f"/g/{gslug}/")
+               for o, gslug, cc in GENRES if gslug != slug and genre_parent.get(o) == parent][:6]
+        related = related_block("関連する使える店（業種）", pairs + sib)
         urls = render_store_pages(items, f"g/{slug}", title_base, h1_base, desc,
-                                  HOME_CRUMB, short)
-        for u, f in urls:
-            add_url(u, f, "0.6" if u.endswith(f"/g/{slug}/") else "0.5")
+                                  HOME_CRUMB, short, related_html=related)
+        for u, fr in urls:
+            add_url(u, fr, "0.6" if u.endswith(f"/g/{slug}/") else "0.5")
 
 
 def build_areas():
     for name, slug, count in AREAS:
         items = [s for s in stores if area_of(s) == name]
-        title_base = f"{name}（{fmt(count)}店）"
-        h1_base = f"{name}でプレミアム商品券2026が使える加盟店一覧（{fmt(count)}店）"
-        desc = (f"大分市プレミアム付き商品券2026が使える{name}周辺の加盟店{fmt(count)}店の一覧（非公式）。"
-                f"店名・業種・デジタル/紙対応がわかります。制作:plan8。")
+        short = name.replace("大分市", "")
+        n = fmt(count)
+        title_base = f"大分市プレミアム商品券2026 {short}で使えるお店 {n}店一覧"
+        h1_base = f"{short}で大分市プレミアム付き商品券2026が使えるお店 加盟店一覧（{n}店）"
+        desc = (f"{short}周辺で{KW_BOTH}2026が使えるお店 {n}店の一覧（非公式）。"
+                f"店名・業種・デジタル/紙対応がわかります。近くの使える店を地図で探せます。制作plan8。")
+        # 関連：ほかのエリア
+        area_pairs = [(a.replace("大分市", "") + f"（{fmt(cc)}）", f"/area/{aslug}/")
+                      for a, aslug, cc in AREAS if aslug != slug][:8]
+        related = related_block("ほかのエリアで使えるお店", area_pairs)
         urls = render_store_pages(items, f"area/{slug}", title_base, h1_base, desc,
-                                  HOME_CRUMB, name)
-        for u, f in urls:
-            add_url(u, f, "0.5")
+                                  HOME_CRUMB, short, related_html=related)
+        for u, fr in urls:
+            add_url(u, fr, "0.5")
 
 
 # ---------------------------------------------------------------- build: list hub
@@ -378,17 +517,20 @@ def build_list_hub():
         for name, slug, count in AREAS
     )
     lead = (
-        f'<p class="lead">大分市プレミアム付き商品券2026が使える加盟店は全<b>{fmt(TOTAL)}店</b>です（最終更新 {BUILD_DATE}・非公式まとめ）。'
+        f'<p class="lead">{KW_BOTH}2026が使える加盟店（使える店）は全<b>{fmt(TOTAL)}店</b>を掲載しています（最終更新 {BUILD_DATE}・非公式まとめ）。'
         f'カテゴリ別では 買う{fmt(CAT_COUNT["買う"])}・食べる{fmt(CAT_COUNT["食べる"])}・暮らす{fmt(CAT_COUNT["暮らす"])}・遊ぶ{fmt(CAT_COUNT["遊ぶ"])}・泊まる{fmt(CAT_COUNT["泊まる"])}。'
         f'デジタル対応{fmt(STATS["digital"])}店／紙対応{fmt(STATS["paper"])}店。'
-        f'下のカテゴリ・ジャンル・エリアから、使えるお店を探せます。地図で探す場合は <a href="/">加盟店マップ</a> をご利用ください。</p>'
+        f'下のカテゴリ・業種・エリアから、使える店・使えるお店を探せます。地図で近くのお店を探す場合は <a href="/">加盟店マップ</a> をご利用ください。'
+        f'（「大分市プレミアム付き商品券」「大分市プレミアム付商品券」「大分市プレミアム商品券」とも表記されます。）</p>'
     )
     body = (
-        '<h2>カテゴリから探す</h2>'
+        stats_table(stores)
+        + '<p class="links" style="margin:10px 0 2px"><a class="pill" href="/guide/"><b>大分市プレミアム付き商品券2026とは・使える店の探し方を見る →</b></a></p>'
+        + '<h2>使える店をカテゴリから探す</h2>'
         f'<div class="links">{cat_links}</div>'
-        '<h2>ジャンルから探す（主要業種）</h2>'
+        '<h2>使える店を業種から探す（主要業種）</h2>'
         f'<div class="links">{genre_links}</div>'
-        '<h2>エリアから探す（主要地区）</h2>'
+        '<h2>使えるお店をエリアから探す（主要地区）</h2>'
         f'<div class="links">{area_links}</div>'
         '<h2>よくある質問</h2>'
         + faq_html()
@@ -397,11 +539,16 @@ def build_list_hub():
     )
     dataset = dataset_json()
     crumb = breadcrumb_json([("ホーム", "/"), ("加盟店一覧", None)])
-    title = f"大分市プレミアム商品券2026 加盟店一覧（全{fmt(TOTAL)}店）｜カテゴリ・エリア・業種別で探す（非公式）"
-    desc = (f"大分市プレミアム付き商品券2026の加盟店一覧（全{fmt(TOTAL)}店・非公式）。"
-            f"買う{fmt(CAT_COUNT['買う'])}・食べる{fmt(CAT_COUNT['食べる'])}など、カテゴリ・業種・エリア別に使えるお店を一覧で探せます。制作:plan8。")
-    # list hub では itemlist の代わりに dataset と faq を @graph に積む
-    ld = jsonld(crumb, dataset, faqpage_json())
+    title = f"大分市プレミアム付き商品券2026 加盟店一覧 全{fmt(TOTAL)}店 使える店をカテゴリ エリア 業種別に探す（非公式）"
+    desc = (f"{KW_BOTH}2026の加盟店一覧（全{fmt(TOTAL)}店・非公式）。"
+            f"買う{fmt(CAT_COUNT['買う'])}・食べる{fmt(CAT_COUNT['食べる'])}など、カテゴリ・業種・エリア別に使える店・使えるお店を一覧で探せます。制作plan8。")
+    # list hub では itemlist の代わりに dataset・FAQ・HowTo・CollectionPage を @graph に積む
+    ld = jsonld(
+        crumb,
+        webpage_json(BASE + "/list/", title, crumb, speakable=True, collection=True,
+                     about=KW_KI + "2026 加盟店"),
+        dataset, faqpage_json(), howto_json(),
+    )
     full = os.path.join(ROOT, "list", "index.html")
     os.makedirs(os.path.dirname(full), exist_ok=True)
     html_out = f"""<!DOCTYPE html>
@@ -428,7 +575,7 @@ def build_list_hub():
 <body>
 <div class="wrap">
 <nav class="bc">{breadcrumb_html(crumb)}</nav>
-<h1>大分市プレミアム商品券2026 加盟店一覧（全{fmt(TOTAL)}店）</h1>
+<h1>大分市プレミアム付き商品券2026 加盟店一覧（使える店 全{fmt(TOTAL)}店）</h1>
 <div class="upd">データ最終更新 {BUILD_DATE}・非公式</div>
 {lead}
 {body}
@@ -441,14 +588,184 @@ def build_list_hub():
     add_url(BASE + "/list/", "weekly", "0.9")
 
 
+# ---------------------------------------------------------------- build: guide (制度まとめハブ)
+def build_guide():
+    facts_rows = "".join(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in PROGRAM_FACTS)
+    facts_table = f'<table class="sum"><tbody>{facts_rows}</tbody></table>'
+    steps = "".join(f"<li><b>{esc(n)}</b>：{esc(t)}</li>" for n, t in HOWTO_STEPS)
+    hub_pairs = [(f"加盟店一覧（全{fmt(TOTAL)}店）", "/list/")] + [
+        (f"{c}で使える店（{fmt(CAT_COUNT[c])}）", f"/c/{CAT_SLUG[c]}/") for c in CAT_ORDER if CAT_COUNT[c]
+    ]
+    lead = (
+        f'<p class="lead">{KW_BOTH}2026について、制度の概要と「使える店」の探し方をまとめた'
+        f'<b>非公式</b>のガイドです（株式会社plan8制作）。本ページは参考情報で、'
+        f'最新・正確な内容は公式サイト <a href="{OFFICIAL}/" rel="noopener">2026.oita-pay.jp</a> でご確認ください。</p>'
+    )
+    body = (
+        "<h2>大分市プレミアム付き商品券2026とは（制度の概要）</h2>"
+        f"<p>大分市プレミアム付き商品券（プレミアム付商品券）2026は、大分市内のお店で使えるプレミアム付きの商品券です。"
+        f"おもな内容は次のとおりです（{FACTS_ASOF}の公式概要より）。</p>"
+        + facts_table
+        + f'<p class="note">上記は{FACTS_ASOF}の公式概要にもとづく参考情報です。申込・抽選・2次募集など最新の日程や条件は'
+          f'公式サイト（<a href="{OFFICIAL}/" rel="noopener">2026.oita-pay.jp</a>）と'
+          f'<a href="{CITY_OFFICIAL}" rel="noopener">大分市の案内</a>でご確認ください。</p>'
+        "<h2>「付」と「付き」表記について</h2>"
+        "<p>大分市（行政）の案内では「大分市プレミアム付商品券」、事業主体の大分商工会議所と公式特設サイトでは"
+        "「大分市プレミアム付き商品券」と表記され、「付」と「付き」の両表記が公式に併存しています。"
+        "「大分市プレミアム商品券」と省略して呼ばれることもありますが、いずれも同じ事業を指します。</p>"
+        "<h2>使える店の探し方</h2>"
+        f'<ol class="howto">{steps}</ol>'
+        + related_block("使える店をカテゴリから探す", hub_pairs)
+        + "<h2>よくある質問</h2>" + faq_html()
+    )
+    crumb = breadcrumb_json([("ホーム", "/"), ("ガイド", None)])
+    title = "大分市プレミアム付き商品券2026とは 使える店の探し方 まとめ（非公式）"
+    h1 = "大分市プレミアム付き商品券（プレミアム付商品券）2026とは 使える店の探し方"
+    desc = (f"{KW_BOTH}2026とは。プレミアム率30%・利用期間2026年6月1日〜8月31日・1人4冊まで・抽選方式などの概要と、"
+            f"使える店・使えるお店の探し方をまとめた非公式ガイド。最新は公式サイトで確認。制作plan8。")
+    url = page("guide/index.html", title, desc[:158], h1, lead, body, crumb,
+               extra_ld=[howto_json(), faqpage_json()], speakable=True, about=KW_KI + "2026")
+    add_url(url, "weekly", "0.8")
+
+
+# ---------------------------------------------------------------- build: individual store pages (/s/<id>/)
+def store_json(s):
+    o = {
+        "@type": ["LocalBusiness", "Store"],
+        "name": s["store_name"],
+        "url": f"{BASE}/s/{s['store_id']}/",
+        "address": {"@type": "PostalAddress", "addressRegion": "大分県",
+                    "addressLocality": "大分市", "streetAddress": addr(s)},
+        "areaServed": {"@type": "City", "name": "大分市"},
+        "makesOffer": {"@type": "Offer", "name": "大分市プレミアム付き商品券2026 利用可",
+                       "description": "この店舗で大分市プレミアム付き商品券（プレミアム付商品券）2026が利用できます。"},
+    }
+    if s.get("store_name_kana"):
+        o["alternateName"] = s["store_name_kana"]
+    if is_precise(s):
+        o["geo"] = {"@type": "GeoCoordinates", "latitude": s["lat"], "longitude": s["lng"]}
+    return o
+
+
+def build_stores():
+    n = 0
+    for s in stores:
+        sid = s["store_id"]
+        name = s["store_name"]
+        minor = s.get("store_category_minor_name") or s.get("store_category_major_name") or ""
+        major = s.get("store_category_major_name") or ""
+        area = area_of(s)
+        a = addr(s)
+        digital, paper = s.get("digital_coupon"), s.get("paper_coupon")
+        pay = "・".join([t for t, ok in (("デジタル", digital), ("紙", paper)) if ok]) or "—"
+        size = "中小・小規模店" if s.get("is_small_store") else "大規模店"
+        dmark, pmark = ("○" if digital else "×"), ("○" if paper else "×")
+        ans = (f"はい。{name}（{area}・{minor}）は、{KW_BOTH}2026の加盟店です"
+               f"（{pay}に対応）。最新・正確な情報は公式サイトでご確認ください。")
+        rows = [("店名", name)]
+        if s.get("store_name_kana"):
+            rows.append(("よみ", s["store_name_kana"]))
+        rows += [("業種", minor), ("住所", a)]
+        if s.get("business_hours"):
+            rows.append(("営業時間", s["business_hours"]))
+        if s.get("closed_day"):
+            rows.append(("定休日", s["closed_day"]))
+        rows += [("商品券の対応", f"デジタル{dmark}／紙{pmark}"), ("店舗区分", size)]
+        detail = ('<table class="sum"><tbody>'
+                  + "".join(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in rows)
+                  + "</tbody></table>")
+        cat_slug = CAT_SLUG.get(major)
+        gslug = GENRE_SLUG.get(s.get("store_category_minor_name"))
+        aslug = AREA_SLUG.get(area)
+        short_g = minor.split("・")[0].split(" [")[0]
+        pairs = []
+        if cat_slug:
+            pairs.append((f"{major}で使える店", f"/c/{cat_slug}/"))
+        if gslug:
+            pairs.append((f"{short_g}で使える店", f"/g/{gslug}/"))
+        if aslug:
+            pairs.append((f"{area.replace('大分市','')}で使えるお店", f"/area/{aslug}/"))
+        pairs.append((f"加盟店一覧（全{fmt(TOTAL)}店）", "/list/"))
+        related = related_block("関連ページ", pairs)
+        sib = [o for o in stores
+               if o.get("store_category_minor_name") == s.get("store_category_minor_name")
+               and o["store_id"] != sid][:6]
+        sib_html = ('<h2>同じ業種で使えるお店</h2><ul class="stores">'
+                    + "".join(store_li(o) for o in sib) + "</ul>") if sib else ""
+        lead = (f'<p class="lead">{esc(name)}（{esc(area)}・{esc(minor)}）で'
+                f'大分市プレミアム付き商品券（プレミアム付商品券）2026が使えるかをまとめた<b>非公式</b>のページです。</p>')
+        body = (
+            f"<h2>{esc(name)}で大分市プレミアム付き商品券2026は使える？</h2>"
+            f"<p>{esc(ans)}</p>"
+            + detail
+            + f'<p class="links"><a class="pill" href="/#store={esc(sid)}">地図でこの店を見る</a> '
+              f'<a class="pill" href="/list/">加盟店一覧へ</a></p>'
+            + related + sib_html
+        )
+        crumb_items = [("ホーム", "/"), ("加盟店一覧", "/list/")]
+        if cat_slug:
+            crumb_items.append((f"{major}で使える店", f"/c/{cat_slug}/"))
+        crumb_items.append((name, None))
+        crumb = breadcrumb_json(crumb_items)
+        title = f"{name}で大分市プレミアム付き商品券2026は使える？ {minor}（非公式）"
+        h1 = f"{name}で大分市プレミアム付き商品券2026は使える？"
+        desc = (f"{name}（{area}・{minor}）は{KW_BOTH}2026の加盟店。デジタル{dmark}／紙{pmark}。住所{a}。"
+                f"非公式まとめ。最新は公式サイトで確認。制作plan8。")
+        store_faq = {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": f"{name}で大分市プレミアム付き商品券2026は使えますか？",
+             "acceptedAnswer": {"@type": "Answer", "text": ans}}]}
+        url = page(f"s/{sid}/index.html", title, desc[:158], h1, lead, body, crumb,
+                   extra_ld=[store_json(s), store_faq], about=KW_KI + "2026")
+        add_url(url, "monthly", "0.4")
+        n += 1
+    return n
+
+
+# ---------------------------------------------------------------- build: area × genre combos
+def build_combos():
+    for aname, aslug, gname, gslug, count in COMBOS:
+        items = [s for s in stores if area_of(s) == aname and s.get("store_category_minor_name") == gname]
+        short_a = aname.replace("大分市", "")
+        short_g = gname.split("・")[0].split(" [")[0]
+        n = fmt(count)
+        slug_dir = f"area/{aslug}/g/{gslug}"
+        title_base = f"大分市プレミアム商品券2026 {short_a}の{short_g}で使える店 {n}店一覧"
+        h1_base = f"{short_a}で大分市プレミアム付き商品券2026が使える{short_g}一覧（{n}店）"
+        desc = (f"{short_a}周辺で{KW_BOTH}2026が使える{short_g}の使える店 {n}店の一覧（非公式）。"
+                f"店名・住所・デジタル/紙対応がわかります。制作plan8。")
+        crumb_parent = [("ホーム", "/"), ("加盟店一覧", "/list/"), (f"{short_a}で使えるお店", f"/area/{aslug}/")]
+        related = related_block("関連", [(f"{short_g}で使える店", f"/g/{gslug}/"),
+                                        (f"{short_a}で使えるお店", f"/area/{aslug}/")])
+        urls = render_store_pages(items, slug_dir, title_base, h1_base, desc,
+                                  crumb_parent, f"{short_a}の{short_g}", related_html=related)
+        for u, fr in urls:
+            add_url(u, fr, "0.4")
+
+
 # ---------------------------------------------------------------- FAQ + structured data shared
 def faqs():
     s = STATS
     return [
-        ("大分市プレミアム商品券が使える店は？",
-         f"{BUILD_DATE}時点で、大分市プレミアム付き商品券2026が使える加盟店は全{fmt(TOTAL)}店です。"
-         f"カテゴリ別では買う{fmt(CAT_COUNT['買う'])}・食べる{fmt(CAT_COUNT['食べる'])}・暮らす{fmt(CAT_COUNT['暮らす'])}・遊ぶ{fmt(CAT_COUNT['遊ぶ'])}・泊まる{fmt(CAT_COUNT['泊まる'])}に分かれ、"
-         f"本サイトでカテゴリ・エリア・業種から検索・地図表示できます。最新・正確な情報は公式サイト（2026.oita-pay.jp）でご確認ください。"),
+        ("大分市プレミアム付商品券（プレミアム付き商品券）が使える店はどこ？",
+         f"{BUILD_DATE}時点で、{KW_BOTH}2026が使える加盟店は全{fmt(TOTAL)}店を掲載しています。"
+         f"カテゴリ別では買う{fmt(CAT_COUNT['買う'])}・食べる{fmt(CAT_COUNT['食べる'])}・暮らす{fmt(CAT_COUNT['暮らす'])}・遊ぶ{fmt(CAT_COUNT['遊ぶ'])}・泊まる{fmt(CAT_COUNT['泊まる'])}。"
+         f"本サイトでカテゴリ・エリア・業種から使える店を検索でき、地図で近くの使えるお店も探せます。最新・正確な情報は公式サイト（2026.oita-pay.jp）でご確認ください。"),
+        ("「プレミアム付商品券」と「プレミアム付き商品券」は同じものですか？",
+         "同じ事業を指します。大分市（行政）の案内では「大分市プレミアム付商品券」、"
+         "事業主体の大分商工会議所と公式特設サイト（2026.oita-pay.jp）では「大分市プレミアム付き商品券」と表記され、"
+         "「付」と「付き」の両表記が公式に併存しています。「大分市プレミアム商品券」と省略して呼ばれることもあります。本サイトはどの呼び方でも使える店を探せます。"),
+        ("大分市プレミアム付き商品券2026のプレミアム率は何%ですか？",
+         f"プレミアム率は30%です（{FACTS_ASOF}の公式概要より）。販売額1万円につき1万3,000円分の商品券を購入でき、1人4冊まで（最大4万円→5万2,000円分）です。"
+         "1冊の内訳は全店舗共通券6,000円分＋中小・小規模店専用券7,000円分。最新の条件は公式サイトでご確認ください。"),
+        ("大分市プレミアム付き商品券2026はいつまで使えますか？",
+         f"利用期間は2026年6月1日（月）〜8月31日（月）です（{FACTS_ASOF}の公式概要より）。"
+         "本サイトは「どの店で使えるか」を探すための非公式マップです。購入・チャージ期間や2次抽選など最新の日程は公式サイトでご確認ください。"),
+        ("大分市プレミアム付き商品券2026はどうやって買えますか？",
+         f"事前申込制の抽選方式です（先着ではありません・{FACTS_ASOF}の公式概要より）。"
+         "インターネットで購入を事前申込し、申込多数の場合は抽選で購入冊数が決まり、結果通知後に販売所で購入またはアプリにチャージします。"
+         "購入対象は大分県内在住者（大分市在住者を優先）。申込日程・手順の詳細は公式サイトでご確認ください。"),
+        ("近くで大分市プレミアム付商品券が使えるお店を探すには？",
+         f"本サイトの地図で現在地を許可すると、近い順に使えるお店を表示できます。エリア別・業種別ページからも絞り込めます。全{fmt(TOTAL)}店を掲載しています。"),
         ("使える飲食店はどれくらいありますか？",
          f"飲食を含む「食べる」カテゴリの加盟店は{fmt(CAT_COUNT['食べる'])}店です。"
          f"主なジャンルは居酒屋{fmt(genre_counter.get('居酒屋・小料理',0))}・和食/すし{fmt(genre_counter.get('和食・すし・割烹',0))}・カフェ{fmt(genre_counter.get('カフェ・喫茶店',0))}・焼肉{fmt(genre_counter.get('焼肉・肉料理・鉄板焼き',0))}などで、ジャンル別ページから探せます。"),
@@ -496,6 +813,24 @@ def faqpage_json():
     }
 
 
+# 「使える店の探し方」（制度ではなく自サイトの操作手順なので HowTo 化しても非公式の線引きを保てる）
+HOWTO_STEPS = [
+    ("エリアか業種でしぼる", "使える店をカテゴリ・エリア・業種から選びます。"),
+    ("地図を開く", "加盟店マップを開くと、使えるお店が地図に表示されます。"),
+    ("現在地で近い順に並べる", "現在地を許可すると、近くの使えるお店から順に並びます。"),
+    ("店名をタップして詳細を見る", "店名・住所・業種・デジタル/紙の対応を確認できます。"),
+]
+
+
+def howto_json():
+    return {
+        "@type": "HowTo",
+        "name": "大分市プレミアム付き商品券2026の使える店を地図で探す",
+        "step": [{"@type": "HowToStep", "position": i + 1, "name": n, "text": t}
+                 for i, (n, t) in enumerate(HOWTO_STEPS)],
+    }
+
+
 def dataset_json():
     return {
         "@type": "Dataset",
@@ -506,7 +841,11 @@ def dataset_json():
         "isBasedOn": OFFICIAL_JSON,
         "dateModified": BUILD_DATE,
         "spatialCoverage": {"@type": "Place", "name": "大分県大分市"},
-        "keywords": ["大分市プレミアム付き商品券", "プレミアム商品券", "加盟店", "店舗一覧", "大分市"],
+        "alternateName": ALIASES,
+        "keywords": [
+            KW_KI, KW_NOKI, "プレミアム付商品券", KW_SHORT, "プレミアム商品券",
+            "加盟店", "店舗一覧", "使える店", "使えるお店", "お店", "大分市 商品券", "大分市",
+        ],
         "variableMeasured": [
             {"@type": "PropertyValue", "name": "加盟店総数", "value": TOTAL},
             {"@type": "PropertyValue", "name": "デジタル対応店数", "value": STATS["digital"]},
@@ -519,7 +858,7 @@ def website_json():
     return {
         "@type": "WebSite",
         "name": "大分市プレミアム付き商品券2026 加盟店マップ（非公式）",
-        "alternateName": "大分市プレミアム商品券2026 店舗一覧・加盟店マップ",
+        "alternateName": ALIASES,
         "url": BASE + "/",
         "inLanguage": "ja",
         "publisher": {"@type": "Organization", "name": "株式会社plan8", "url": MAKER},
@@ -545,27 +884,62 @@ def inject_index():
     path = os.path.join(ROOT, "index.html")
     src = open(path, encoding="utf-8").read()
 
-    head_ld = jsonld(website_json(), organization_json(), dataset_json(), faqpage_json())
+    # ----- GEN:head: title / description / canonical / OGP を生成器の所有下に置く -----
+    title = f"{KW_KI}2026 加盟店マップ 使える店を地図で探す 全{fmt(TOTAL)}店（非公式）"
+    desc = (f"{KW_BOTH}2026が使える加盟店{fmt(TOTAL)}店を地図と一覧で検索できる非公式まとめ。"
+            f"カテゴリ・エリア・業種別や現在地から近い順に、使える店・使えるお店を探せます。"
+            f"デジタル/紙の対応もわかる。制作plan8（最新情報は公式サイトで確認）")
+    og_title = f"{KW_KI}2026 加盟店マップ 使える店を地図で探す（非公式）"
+    og_desc = (f"使える加盟店{fmt(TOTAL)}店を一覧・地図で検索。カテゴリ・エリア・業種別、現在地から近い順。"
+               f"大分市プレミアム付商品券とも表記。制作plan8")
+    head = f"""<title>{esc(title)}</title>
+<meta name="description" content="{esc(desc)}">
+<link rel="canonical" href="{BASE}/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="株式会社plan8">
+<meta property="og:title" content="{esc(og_title)}">
+<meta property="og:description" content="{esc(og_desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{BASE}/">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:site_name" content="{KW_KI}2026 加盟店マップ">
+<meta property="og:image" content="{BASE}/ogp.png">
+<meta property="og:image:width" content="2400">
+<meta property="og:image:height" content="1260">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="{KW_KI}2026 加盟店マップ — 制作 plan8">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{esc(og_title)}">
+<meta name="twitter:description" content="{esc(og_desc)}">
+<meta name="twitter:image" content="{BASE}/ogp.png">"""
+
+    head_ld = jsonld(
+        website_json(), organization_json(),
+        webpage_json(BASE + "/", title, speakable=True, about=KW_KI + "2026 加盟店"),
+        dataset_json(), faqpage_json(), howto_json(),
+    )
 
     cat_links = "".join(
         f'<a href="/c/{CAT_SLUG[c]}/">{c}（{fmt(CAT_COUNT[c])}）</a>' for c in CAT_ORDER if CAT_COUNT[c])
     genre_links = "".join(
-        f'<a href="/g/{slug}/">{esc(name.split("・")[0].split(" [")[0])}</a>' for name, slug, count in GENRES[:10])
+        f'<a href="/g/{slug}/">{esc(name.split("・")[0].split(" [")[0])}</a>' for name, slug, count in GENRES[:12])
     area_links = "".join(
-        f'<a href="/area/{slug}/">{esc(name.replace("大分市",""))}</a>' for name, slug, count in AREAS[:10])
+        f'<a href="/area/{slug}/">{esc(name.replace("大分市",""))}</a>' for name, slug, count in AREAS[:12])
 
     seo = f"""<section class="seo-content" id="about">
-  <h2>大分市プレミアム付き商品券2026の加盟店を一覧・地図で探す（非公式）</h2>
-  <p>このページは、<strong>大分市プレミアム付き商品券2026</strong>が使える加盟店<strong>{fmt(TOTAL)}店</strong>を検索・地図表示できる非公式のまとめです（株式会社plan8制作・データ最終更新 {BUILD_DATE}）。
+  <h2>大分市プレミアム付き商品券（プレミアム付商品券）2026の使える店を一覧・地図で探す（非公式）</h2>
+  <p>このページは、<strong>大分市プレミアム付き商品券（プレミアム付商品券）2026</strong>が使える加盟店<strong>{fmt(TOTAL)}店</strong>を検索・地図表示できる非公式のまとめです（株式会社plan8制作・データ最終更新 {BUILD_DATE}）。
   カテゴリ別では 買う{fmt(CAT_COUNT['買う'])}・食べる{fmt(CAT_COUNT['食べる'])}・暮らす{fmt(CAT_COUNT['暮らす'])}・遊ぶ{fmt(CAT_COUNT['遊ぶ'])}・泊まる{fmt(CAT_COUNT['泊まる'])}店。
   デジタル対応{fmt(STATS['digital'])}店／紙対応{fmt(STATS['paper'])}店／中小・小規模店{fmt(STATS['small'])}店。
-  「大分市プレミアム商品券が使える店」「加盟店一覧」「使える飲食店」を、地図・現在地からの距離・カテゴリ/エリア/業種でかんたんに探せます。</p>
-  <p class="seo-links"><a href="/list/"><b>加盟店一覧（全{fmt(TOTAL)}店）を見る →</b></a></p>
-  <h3>カテゴリから探す</h3>
+  「どこで使える？」「近くの使えるお店は？」を、地図・現在地からの距離・カテゴリ/エリア/業種でかんたんに探せます。
+  （「大分市プレミアム付き商品券」「大分市プレミアム付商品券」「大分市プレミアム商品券」とも表記されます。）</p>
+  <p class="seo-links"><a href="/list/"><b>大分市プレミアム付き商品券2026の加盟店一覧（全{fmt(TOTAL)}店）を見る →</b></a>
+  ・<a href="/guide/">制度のまとめ・使える店の探し方</a></p>
+  <h3>使える店をカテゴリから探す</h3>
   <nav class="seo-links">{cat_links}</nav>
-  <h3>業種から探す</h3>
+  <h3>使えるお店を業種から探す</h3>
   <nav class="seo-links">{genre_links}</nav>
-  <h3>エリアから探す</h3>
+  <h3>近くの使える店をエリアから探す</h3>
   <nav class="seo-links">{area_links}</nav>
   <h3>よくある質問</h3>
   {faq_html()}
@@ -576,6 +950,7 @@ def inject_index():
   {FOOTER}
 </section>"""
 
+    src = _replace_region(src, "GEN:head", head)
     src = _replace_region(src, "GEN:jsonld", head_ld)
     src = _replace_region(src, "GEN:seo", seo)
     open(path, "w", encoding="utf-8").write(src)
@@ -628,19 +1003,27 @@ def write_sitemap():
 
 
 def write_llms():
-    g = "".join(f"\n- ジャンル: {n.split('・')[0]}({fmt(c)}店) → {BASE}/g/{s}/" for n, s, c in GENRES[:10])
-    a = "".join(f"\n- エリア: {n.replace('大分市','')}({fmt(c)}店) → {BASE}/area/{s}/" for n, s, c in AREAS[:8])
+    g = "".join(f"\n- 業種: {n.split('・')[0]}（{fmt(c)}店） → {BASE}/g/{s}/" for n, s, c in GENRES)
+    a = "".join(f"\n- エリア: {n.replace('大分市','')}（{fmt(c)}店） → {BASE}/area/{s}/" for n, s, c in AREAS)
     txt = f"""# 大分市プレミアム付き商品券2026 加盟店マップ（非公式・株式会社plan8制作）
 
-> 大分市プレミアム付き商品券2026が使える加盟店{fmt(TOTAL)}店を検索・カテゴリ別・エリア別・業種別・地図表示できる非公式まとめ。データ最終更新 {BUILD_DATE}。本サイトは非公式であり、最新・正確な情報は公式サイト({OFFICIAL})でご確認ください。
+> {KW_BOTH}2026が使える加盟店{fmt(TOTAL)}店を検索・カテゴリ別・エリア別・業種別・地図表示できる非公式まとめ。データ最終更新 {BUILD_DATE}。本サイトは非公式であり、最新・正確な情報は公式サイト({OFFICIAL})でご確認ください。
+> 別名・表記ゆれ（いずれも同一事業）: 大分市プレミアム付き商品券 / 大分市プレミアム付商品券 / 大分市プレミアム商品券 / 大分市 商品券。
 
 ## 概要（件数）
-- 総加盟店数: {fmt(TOTAL)}店
+- 総加盟店数（本サイト掲載・使える店）: {fmt(TOTAL)}店
 - カテゴリ別: 買う {fmt(CAT_COUNT['買う'])} / 食べる {fmt(CAT_COUNT['食べる'])} / 暮らす {fmt(CAT_COUNT['暮らす'])} / 遊ぶ {fmt(CAT_COUNT['遊ぶ'])} / 泊まる {fmt(CAT_COUNT['泊まる'])}
 - 対応: デジタル対応 {fmt(STATS['digital'])}店 / 紙対応 {fmt(STATS['paper'])}店
 - 規模: 中小・小規模店 {fmt(STATS['small'])}店 / 大規模店 {fmt(STATS['large'])}店
 
+## 制度の概要（{FACTS_ASOF}の公式概要より・最新は公式で確認）
+- プレミアム率: 30%（1万円→1万3,000円分）
+- 利用期間: 2026年6月1日〜8月31日
+- 購入上限: 1人4冊まで（最大4万円→5万2,000円分）
+- 購入方法: 事前申込制の抽選方式（先着ではない）
+
 ## 主要ページ
+- [制度まとめ・使える店の探し方]({BASE}/guide/)
 - [加盟店一覧（全{fmt(TOTAL)}店）]({BASE}/list/)
 - [カテゴリ: 買う]({BASE}/c/kau/) / [食べる]({BASE}/c/taberu/) / [暮らす]({BASE}/c/kurasu/){g}{a}
 - [地図で探す（現在地から近い順）]({BASE}/)
@@ -654,8 +1037,9 @@ def write_llms():
 """
     open(os.path.join(ROOT, "llms.txt"), "w", encoding="utf-8").write(txt)
 
-    lines = [f"# 大分市プレミアム付き商品券2026 加盟店一覧（全{fmt(TOTAL)}店・非公式 / plan8）",
+    lines = [f"# 大分市プレミアム付き商品券（プレミアム付商品券）2026 加盟店一覧（全{fmt(TOTAL)}店・非公式 / plan8）",
              f"# データ最終更新 {BUILD_DATE} ・ 出典 {OFFICIAL_JSON} ・ 電話番号は非掲載",
+             "# 形式: 店名｜よみ｜業種｜住所｜対応｜規模｜個別ページURL",
              ""]
     for c in CAT_ORDER:
         items = sorted((s for s in stores if s.get("store_category_major_name") == c),
@@ -666,7 +1050,8 @@ def write_llms():
         for s in items:
             pay = "/".join([t for t, ok in (("デジタル", s.get("digital_coupon")), ("紙", s.get("paper_coupon"))) if ok]) or "—"
             sz = "中小・小規模店" if s.get("is_small_store") else "大規模店"
-            lines.append(f"- {s['store_name']}｜{s.get('store_category_minor_name','')}｜{addr(s)}｜{pay}｜{sz}")
+            kana = s.get("store_name_kana", "")
+            lines.append(f"- {s['store_name']}｜{kana}｜{s.get('store_category_minor_name','')}｜{addr(s)}｜{pay}｜{sz}｜{BASE}/s/{s['store_id']}/")
     open(os.path.join(ROOT, "llms-full.txt"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
 
@@ -676,7 +1061,7 @@ def assert_no_phone():
     import glob
     pat = re.compile(r"0[789]0\d{7,8}|0\d{1,3}-\d{2,4}-\d{3,4}|tel:\s*0\d")
     targets = ["index.html", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt"]
-    for d in ("list", "c", "g", "area"):
+    for d in ("list", "c", "g", "area", "guide", "s"):
         targets += [os.path.relpath(p, ROOT) for p in
                     glob.glob(os.path.join(ROOT, d, "**", "*.html"), recursive=True)]
     hits = []
@@ -698,14 +1083,18 @@ def main():
     build_categories()
     build_genres()
     build_areas()
+    build_combos()
+    build_stores()
     build_list_hub()
+    build_guide()
     inject_index()
     write_robots()
     n = write_sitemap()
     write_llms()
     assert_no_phone()
     print(f"built: {TOTAL} stores | categories {len([c for c in CAT_ORDER if CAT_COUNT[c]])} "
-          f"| genres {len(GENRES)} | areas {len(AREAS)} | sitemap urls {n} | updated {BUILD_DATE} | PII-check OK")
+          f"| genres {len(GENRES)} | areas {len(AREAS)} | combos {len(COMBOS)} | store pages {TOTAL} "
+          f"| sitemap urls {n} | updated {BUILD_DATE} | PII-check OK")
 
 
 if __name__ == "__main__":
