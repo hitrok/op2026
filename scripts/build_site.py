@@ -885,11 +885,11 @@ def inject_index():
     src = open(path, encoding="utf-8").read()
 
     # ----- GEN:head: title / description / canonical / OGP を生成器の所有下に置く -----
-    title = f"{KW_KI}2026 加盟店マップ 使える店を地図で探す 全{fmt(TOTAL)}店（非公式）"
-    desc = (f"{KW_BOTH}2026が使える加盟店{fmt(TOTAL)}店を地図と一覧で検索できる非公式まとめ。"
+    title = f"{KW_KI}2026 加盟店マップ・店舗一覧 使える店を地図で探す（非公式）"
+    desc = (f"{KW_BOTH}2026が使える加盟店{fmt(TOTAL)}店を地図と店舗一覧で検索できる非公式まとめ。"
             f"カテゴリ・エリア・業種別や現在地から近い順に、使える店・使えるお店を探せます。"
             f"デジタル/紙の対応もわかる。制作plan8（最新情報は公式サイトで確認）")
-    og_title = f"{KW_KI}2026 加盟店マップ 使える店を地図で探す（非公式）"
+    og_title = f"{KW_KI}2026 加盟店マップ・店舗一覧 使える店を地図で探す（非公式）"
     og_desc = (f"使える加盟店{fmt(TOTAL)}店を一覧・地図で検索。カテゴリ・エリア・業種別、現在地から近い順。"
                f"大分市プレミアム付商品券とも表記。制作plan8")
     head = f"""<title>{esc(title)}</title>
