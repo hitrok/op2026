@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="商品券マップ">
+  <!-- 真面目系マーク: 地図ピン + 券の横線。情報ツールの記号 -->
+  <path d="M16 4.5c-4.3 0-7.75 3.35-7.75 7.5 0 5.4 6.4 12.4 7.2 13.25a.75.75 0 0 0 1.1 0c.8-.85 7.2-7.85 7.2-13.25 0-4.15-3.45-7.5-7.75-7.5z" stroke="#141413" stroke-width="1.6"/>
+  <circle cx="16" cy="12" r="2.6" stroke="#141413" stroke-width="1.5"/>
+  <path d="M9.5 27.5h13" stroke="#141413" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="22.5" cy="27.5" r="1.2" fill="#E85A5A"/>
+</svg>

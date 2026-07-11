@@ -13,15 +13,16 @@ const RECOMMEND_URL = 'https://noarrgikglfcprjiuqtf.supabase.co/functions/v1/oit
 const DATA_VERSION = 2;  // 座標の補正版。上げると保存済みデータの座標をbaselineで再シードする
 const OITA_CENTER = [33.2335, 131.6075];
 
+/* カテゴリ色はデモの真面目トーンに合わせた落ち着いたパレット（iOS原色は使わない） */
 const CATS = {
-  '食べる': { color: '#ff9500', emoji: '🍴' },
-  '買う':   { color: '#007aff', emoji: '🛍️' },
-  '暮らす': { color: '#34c759', emoji: '🏠' },
-  '遊ぶ':   { color: '#af52de', emoji: '🎡' },
-  '泊まる': { color: '#ff2d55', emoji: '🛏️' },
+  '食べる': { color: '#b8732e', emoji: '' },
+  '買う':   { color: '#2f6f9f', emoji: '' },
+  '暮らす': { color: '#2f7a4e', emoji: '' },
+  '遊ぶ':   { color: '#5c4f8c', emoji: '' },
+  '泊まる': { color: '#e85a5a', emoji: '' },
 };
 const CAT_ORDER = ['食べる', '買う', '暮らす', '遊ぶ', '泊まる'];
-const CAT_FALLBACK = { color: '#8e8e93', emoji: '📍' };
+const CAT_FALLBACK = { color: '#8a8680', emoji: '' };
 const catOf = (n) => CATS[n] || CAT_FALLBACK;
 
 // ===== 状態 =====
@@ -145,7 +146,7 @@ function initMap() {
     iconCreateFunction: (c) => {
       const n = c.getChildCount();
       const size = n < 10 ? 38 : n < 50 ? 46 : n < 200 ? 54 : 62;
-      const bg = n < 10 ? '#34c759' : n < 50 ? '#007aff' : n < 200 ? '#ff9500' : '#ff3b30';
+      const bg = n < 10 ? '#2f7a4e' : n < 50 ? '#2f6f9f' : n < 200 ? '#b8732e' : '#e85a5a';
       return L.divIcon({
         html: `<div class="cluster" style="width:${size}px;height:${size}px;background:${bg}">${n}</div>`,
         className: '', iconSize: [size, size],
@@ -156,12 +157,12 @@ function initMap() {
 }
 
 function makeMarker(s) {
-  const { color, emoji } = catOf(s.store_category_major_name);
+  const { color } = catOf(s.store_category_major_name);
   const icon = L.divIcon({
     className: 'mk',
-    iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -14],
-    html: `<div style="width:26px;height:26px;border-radius:50%;background:${color};border:2px solid #fff;
-      box-shadow:0 2px 4px rgba(0,0,0,.35);display:grid;place-items:center;font-size:13px;line-height:1">${emoji}</div>`,
+    iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -12],
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2px solid #fff;
+      box-shadow:0 1px 3px rgba(20,20,19,.35);margin:2px"></div>`,
   });
   const m = L.marker([s.lat, s.lng], { icon, title: s.store_name });
   m.on('click', () => openSheet(s));
@@ -305,7 +306,7 @@ function applyFilters() {
   // カウント
   const f = filtered.length, t = stores.length;
   $('#count').textContent = (f === t)
-    ? `加盟店マップ・${t.toLocaleString()}件`
+    ? `地図で探せる使える店・${t.toLocaleString()}件`
     : `該当 ${f.toLocaleString()}件 / 全${t.toLocaleString()}件`;
   // リスト
   listLimit = 80;
@@ -336,14 +337,15 @@ function renderList() {
     : '';
   const slice = filtered.slice(0, listLimit);
   const rows = slice.map((s) => {
-    const { color, emoji } = catOf(s.store_category_major_name);
+    const { color } = catOf(s.store_category_major_name);
     const dist = (s._d != null && s._d !== Infinity) ? `<div class="dist">${fmtDist(s._d)}${CHEV}</div>` : `<div class="dist">${CHEV}</div>`;
     const sz = sizeInfo(s);
+    const major = s.store_category_major_name || '';
     return `<div class="row" data-id="${s.store_id}">
-      <div class="pin" style="background:${color}">${emoji}</div>
+      <div class="pin" style="background:${color}" aria-hidden="true">${esc(major.slice(0, 1))}</div>
       <div class="info">
         <div class="name">${esc(s.store_name)}</div>
-        <div class="meta"><span class="tag ${sz.cls}">${sz.label}</span><span class="cat">${esc(s.store_category_minor_name || s.store_category_major_name)}</span>${s.business_hours ? `<span>${esc(s.business_hours)}</span>` : ''}</div>
+        <div class="meta"><span class="tag ${sz.cls}">${sz.label}</span><span class="cat">${esc(s.store_category_minor_name || major)}</span>${s.business_hours ? `<span>${esc(s.business_hours)}</span>` : ''}</div>
         <div class="addr">${esc(s.address_1 + s.address_2)}</div>
       </div>${dist}</div>`;
   }).join('');
@@ -452,13 +454,35 @@ function focusStore(s) {
 // 静的な一覧/カテゴリページからの遷移を受ける。
 //  - /#store=<store_id> … その店を地図で開く（一覧ページの店名リンク）
 //  - /?q=<検索語>        … 検索語で絞り込んで一覧表示（WebSite SearchAction の着地）
+//  - /?size=small|large  … 中小店舗/大規模の絞り込み（SEO「中小店舗検索」着地）
 function handleDeepLink() {
   try {
-    const q = new URLSearchParams(location.search).get('q');
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    const size = params.get('size');
+    let openAdv = false;
     if (q) {
       $('#search').value = q;
       $('#searchClear').classList.add('show');
       filters.q = norm(q).trim();
+      openAdv = true;
+    }
+    if (size === 'small' || size === 'large') {
+      filters.size = size;
+      const sel = $('#sizeSelect');
+      if (sel) sel.value = size;
+      openAdv = true;
+      track('filter_size', { size: size, source: 'deeplink' });
+    }
+    if (q || size) {
+      if (openAdv) {
+        const panel = $('#advPanel');
+        if (panel && !panel.classList.contains('open')) {
+          panel.classList.add('open');
+          $('#advToggle').classList.add('open');
+          $('#advToggle').setAttribute('aria-expanded', 'true');
+        }
+      }
       applyFilters();
       setView('list');
     }
@@ -598,11 +622,11 @@ function buildChips() {
   const counts = {};
   for (const s of stores) counts[s.store_category_major_name] = (counts[s.store_category_major_name] || 0) + 1;
   const el = $('#chips');
-  let html = `<button class="chip c-all active" data-major="">すべて</button>`;
+  let html = `<button class="chip c-all active" data-major="" type="button">すべて</button>`;
   for (const name of CAT_ORDER) {
     if (!counts[name]) continue;
-    html += `<button class="chip" data-major="${name}" style="--c:${CATS[name].color}">
-      <span class="dot" style="background:${CATS[name].color}"></span>${CATS[name].emoji} ${name}</button>`;
+    html += `<button class="chip" data-major="${name}" type="button">
+      <span class="dot" style="background:${CATS[name].color}"></span>${name}</button>`;
   }
   el.innerHTML = html;
   el.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => onChip(c)));
@@ -614,12 +638,13 @@ function onChip(c) {
   else {
     filters.majors.has(major) ? filters.majors.delete(major) : filters.majors.add(major);
   }
-  // 見た目更新
+  // 見た目更新（塗りつぶしではなく .active の淡色枠。デモ pill 準拠）
   $('#chips').querySelectorAll('.chip').forEach((el) => {
     const m = el.dataset.major;
     const on = m === '' ? filters.majors.size === 0 : filters.majors.has(m);
     el.classList.toggle('active', on);
-    el.style.background = (on && m) ? CATS[m].color : '';
+    el.style.background = '';
+    el.style.color = '';
   });
   filters.minor = ''; rebuildMinorOptions();
   applyFilters();

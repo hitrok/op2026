@@ -1,0 +1,63 @@
+name: 加盟店データ自動更新
+
+# 公式の store_list.json を定期取得し、マスタ(data/stores.geo.json)を増分更新して
+# 静的SEOページ(index/list/c/g/area・sitemap・llms)を再生成し、変更があればコミット＝GitHub Pagesへ反映。
+# ブラウザの ⟳ ボタンは各自のIndexedDBを更新するだけ。検索エンジン向けのマスタ更新はこのジョブが担う。
+
+on:
+  schedule:
+    # 毎日 JST 06:00 と 18:00（UTC 21:00 / 09:00）。キャンペーン中の加盟店追加を拾う。
+    - cron: '0 21 * * *'
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}   # GitHubの画面から手動実行も可
+
+permissions:
+  contents: write          # GITHUB_TOKEN でコミット/プッシュするために必要
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'   # 依存は標準ライブラリのみ（pip install 不要）
+
+      - name: 公式の最新加盟店データを取得
+        run: |
+          set -euo pipefail
+          curl -sSfL --retry 3 --retry-delay 5 \
+            https://2026.oita-pay.jp/docs/store_list/store_list.json \
+            -o data/store_list.raw.json
+          bytes=$(wc -c < data/store_list.raw.json)
+          echo "取得サイズ: ${bytes} bytes"
+          # 取得失敗やエラーページで小さくなった場合は安全側で中断（マスタを壊さない）
+          if [ "${bytes}" -lt 100000 ]; then
+            echo "公式データが想定より小さいため中断します。"
+            exit 1
+          fi
+
+      - name: 増分リフレッシュ（既存座標は保全・新規のみジオコーディング）
+        run: python3 scripts/refresh.py
+
+      - name: 変更があれば静的ページを再生成してコミット
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/stores.geo.json; then
+            echo "加盟店マスタに変更なし。再生成・コミットはスキップします。"
+            exit 0
+          fi
+          echo "加盟店マスタに変更あり。静的ページを再生成します。"
+          python3 scripts/build_site.py
+          git config user.name  "op2026-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "data: 加盟店マスタ自動更新（公式store_list.jsonより）[skip ci]"
+          git push

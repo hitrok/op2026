@@ -1,5 +1,5 @@
 # 大分市プレミアム付き商品券（プレミアム付商品券）2026 加盟店一覧（全2,635店・非公式 / plan8）
-# データ最終更新 2026-06-27 ・ 出典 https://2026.oita-pay.jp/docs/store_list/store_list.json ・ 電話番号は非掲載
+# データ最終更新 2026-07-11 ・ 出典 https://2026.oita-pay.jp/docs/store_list/store_list.json ・ 電話番号は非掲載
 # 形式: 店名｜よみ｜業種｜住所｜対応｜規模｜個別ページURL
 
 
