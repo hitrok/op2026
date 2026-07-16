@@ -1,13 +1,13 @@
 # 大分市プレミアム商品券2026 使える店マップ（非公式・株式会社plan8制作）
 
-> 大分市プレミアム商品券（大分市プレミアム付き商品券（プレミアム付商品券））2026が使える加盟店2,762店を地図・カテゴリ・エリア・業種で探せる非公式まとめ。データ最終更新 2026-07-15。最新・正確な情報は公式(https://2026.oita-pay.jp)で確認。
+> 大分市プレミアム商品券（大分市プレミアム付き商品券（プレミアム付商品券））2026が使える加盟店2,767店を地図・カテゴリ・エリア・業種で探せる非公式まとめ。データ最終更新 2026-07-16。最新・正確な情報は公式(https://2026.oita-pay.jp)で確認。
 > 表記ゆれ（同一事業）: 大分市プレミアム商品券 / 大分市プレミアム付き商品券 / 大分市プレミアム付商品券 / プレミアム商品券 / 大分市 商品券。
 
 ## 概要（件数）
-- 総加盟店数（本サイト掲載・使える店）: 2,762店
-- カテゴリ別: 買う 1,250 / 食べる 950 / 暮らす 512 / 遊ぶ 45 / 泊まる 5
-- 対応: デジタル対応 2,560店 / 紙対応 2,712店
-- 規模: 中小・小規模店 2,171店 / 大規模店 591店
+- 総加盟店数（本サイト掲載・使える店）: 2,767店
+- カテゴリ別: 買う 1,252 / 食べる 952 / 暮らす 513 / 遊ぶ 45 / 泊まる 5
+- 対応: デジタル対応 2,565店 / 紙対応 2,717店
+- 規模: 中小・小規模店 2,174店 / 大規模店 593店
 
 ## 制度の概要（2026年3月時点の公式概要より・最新は公式で確認）
 - プレミアム率: 30%（1万円→1万3,000円分）
@@ -17,19 +17,19 @@
 
 ## 主要ページ
 - [制度まとめ・使える店の探し方](https://op2026.plan8.jp/guide/)
-- [加盟店一覧（全2,762店）](https://op2026.plan8.jp/list/)
+- [加盟店一覧（全2,767店）](https://op2026.plan8.jp/list/)
 - [カテゴリ: 買う](https://op2026.plan8.jp/c/kau/) / [食べる](https://op2026.plan8.jp/c/taberu/) / [暮らす](https://op2026.plan8.jp/c/kurasu/)
 - 業種: 衣類（258店） → https://op2026.plan8.jp/g/fashion/
 - 業種: 居酒屋（203店） → https://op2026.plan8.jp/g/izakaya/
 - 業種: コンビニ（182店） → https://op2026.plan8.jp/g/konbini/
-- 業種: エステ（144店） → https://op2026.plan8.jp/g/salon/
-- 業種: 和食（110店） → https://op2026.plan8.jp/g/washoku/
+- 業種: エステ（145店） → https://op2026.plan8.jp/g/salon/
+- 業種: 和食（111店） → https://op2026.plan8.jp/g/washoku/
 - 業種: 理容室（107店） → https://op2026.plan8.jp/g/beauty/
 - 業種: カフェ（106店） → https://op2026.plan8.jp/g/cafe/
 - 業種: 焼肉（96店） → https://op2026.plan8.jp/g/yakiniku/
 - 業種: スーパー（83店） → https://op2026.plan8.jp/g/super/
+- 業種: 食堂（82店） → https://op2026.plan8.jp/g/restaurant/
 - 業種: ドラッグストア（81店） → https://op2026.plan8.jp/g/drugstore/
-- 業種: 食堂（81店） → https://op2026.plan8.jp/g/restaurant/
 - 業種: 時計（60店） → https://op2026.plan8.jp/g/watch-jewelry/
 - 業種: ラーメン（55店） → https://op2026.plan8.jp/g/ramen/
 - 業種: 惣菜（53店） → https://op2026.plan8.jp/g/bento/
@@ -48,14 +48,14 @@
 - 業種: タクシー（25店） → https://op2026.plan8.jp/g/taxi/
 - 業種: 自転車（22店） → https://op2026.plan8.jp/g/bike/
 - 業種: 造園（21店） → https://op2026.plan8.jp/g/housing/
-- エリア: 要町（198店） → https://op2026.plan8.jp/area/kanamemachi/
+- エリア: 要町（200店） → https://op2026.plan8.jp/area/kanamemachi/
 - エリア: 中央町（189店） → https://op2026.plan8.jp/area/chuomachi/
 - エリア: 府内町（172店） → https://op2026.plan8.jp/area/funaimachi/
 - エリア: 都町（102店） → https://op2026.plan8.jp/area/miyakomachi/
 - エリア: 公園通り西（99店） → https://op2026.plan8.jp/area/koendori-nishi/
 - エリア: 玉沢（89店） → https://op2026.plan8.jp/area/tamazawa/
 - エリア: 森町（41店） → https://op2026.plan8.jp/area/morimachi/
-- エリア: 萩原（37店） → https://op2026.plan8.jp/area/hagiwara/
+- エリア: 萩原（38店） → https://op2026.plan8.jp/area/hagiwara/
 - エリア: 田中町（32店） → https://op2026.plan8.jp/area/tanakamachi/
 - エリア: 中戸次（31店） → https://op2026.plan8.jp/area/nakahetsugi/
 - エリア: 下郡（30店） → https://op2026.plan8.jp/area/shimogori/
